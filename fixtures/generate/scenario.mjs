@@ -73,7 +73,7 @@ function pricedProvider(provider, ai) {
 /** Registry, models and definitions shared by the generating process and the crash children. */
 export function buildSetup(mods) {
 	const { durable, ai, Type, chord } = mods;
-	const { defineDoc, defineExtension, defineTask, defineTool, createRegistry } = durable;
+	const { defineDoc, defineExtension, defineTask, defineTool, createRegistry, section } = durable;
 	const hasSleep = mods.features.sleep;
 	const never = (context) => chord.awaitWithContext(new Promise(() => {}), context);
 
@@ -237,7 +237,18 @@ export function buildSetup(mods) {
 
 	const registry = createRegistry();
 	registry.install(
-		defineExtension({ name: "triage", tools, tasks: [Build, Publish, Release, Recheck, MirrorSync, Cleanup] }),
+		defineExtension({
+			name: "triage",
+			sections: [
+				section(
+					"triage",
+					() =>
+						"You triage issues for the acme/widgets repository. Search before you answer, keep notes with take_note, and delegate patches to a subagent.",
+				),
+			],
+			tools,
+			tasks: [Build, Publish, Release, Recheck, MirrorSync, Cleanup],
+		}),
 	);
 	const settings = hasSleep ? { restartLimit: 3 } : {};
 	return { faux, models, registry, settings, docs: { Notes, Settings }, tasks: { Release, Recheck, MirrorSync, Cleanup, Build } };
@@ -381,6 +392,28 @@ export async function hold(mods, { kind, path }) {
 	process.stdout.write("ready\n");
 	process.stdin.resume();
 	await new Promise((resolve) => process.stdin.on("end", resolve));
+	await harness.close(context);
+}
+
+/** Owner process that keeps committing: a session document change every few milliseconds until stdin closes. */
+export async function churn(mods, { kind, path }) {
+	const context = mods.chord.BACKGROUND_CONTEXT;
+	const setup = buildSetup(mods);
+	const harness = await openHarness(mods, setup, kind, path);
+	let open = true;
+	process.stdin.on("end", () => {
+		open = false;
+	});
+	process.stdin.resume();
+	process.stdout.write("ready\n");
+	for (let i = 0; open; i++) {
+		await harness.commit(async (tx) => {
+			const settings = await tx.doc(setup.docs.Settings);
+			settings.reviewers.push(`reviewer-${i}`);
+			if (settings.reviewers.length > 20) settings.reviewers.splice(0, 10);
+		}, context);
+		await delay(2);
+	}
 	await harness.close(context);
 }
 

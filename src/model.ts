@@ -248,11 +248,16 @@ function firstText(entry: LensEntry): string | undefined {
 
 export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 	const restartLimit = options.restartLimit ?? DEFAULT_RESTART_LIMIT;
-	const entries = raw.entries.map(entryOf);
-	const tasks = raw.tasks.map((record) => taskOf(record, restartLimit));
-	const documents = raw.documents.map(documentOf);
-	const submissions = raw.submissions.map(submissionOf);
 	const warnings = [...raw.warnings];
+	// Records without their own id are not pi-durable JSON as stored in the clear.
+	const opaque = [...raw.conversations, ...raw.entries.map((entry) => entry.record), ...raw.tasks].filter((record) => num(record.id) === undefined).length;
+	if (opaque > 0) {
+		warnings.push(`${opaque} records have no id: the adapter may encrypt or compress payloads at rest; pass --decoder with a module that decodes them`);
+	}
+	const entries = raw.entries.filter((entry) => num(entry.record.id) !== undefined).map(entryOf);
+	const tasks = raw.tasks.filter((record) => num(record.id) !== undefined).map((record) => taskOf(record, restartLimit));
+	const documents = raw.documents.filter((document) => num(document.record.id) !== undefined).map(documentOf);
+	const submissions = raw.submissions.filter((record) => num(record.id) !== undefined).map(submissionOf);
 
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const entryById = new Map(entries.map((entry) => [entry.id, entry]));
@@ -296,7 +301,7 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 		docsByConversation.set(document.scope.conversationId, list);
 	}
 
-	const conversations: LensConversation[] = raw.conversations.map((record) => {
+	const conversations: LensConversation[] = raw.conversations.filter((record) => num(record.id) !== undefined).map((record) => {
 		const id = Number(record.id);
 		const parent = isObject(record.parent) ? { conversationId: Number(record.parent.conversationId), at: Number(record.parent.at) } : undefined;
 		const owner = isObject(record.owner) ? { conversationId: Number(record.owner.conversationId), taskId: Number(record.owner.taskId) } : undefined;

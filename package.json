@@ -37,10 +37,12 @@
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
     "test": "npm run build && node --test --test-reporter=spec test/*.test.ts",
     "fixtures": "node fixtures/generate/build.mjs",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "check:ui": "node scripts/check-ui.mjs"
   },
   "devDependencies": {
     "@types/node": "22.19.19",
+    "playwright-core": "1.63.0",
     "typescript": "7.0.2"
   }
 }
