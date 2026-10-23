@@ -4,6 +4,14 @@
   "description": "Local, read-only inspector for pi-durable storage: transcript, task graph, documents, cost and time on one timeline.",
   "license": "MIT",
   "author": "Daniel Galinkin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dggc/durable-lens.git"
+  },
+  "homepage": "https://github.com/dggc/durable-lens#readme",
+  "bugs": {
+    "url": "https://github.com/dggc/durable-lens/issues"
+  },
   "type": "module",
   "bin": {
     "durable-lens": "dist/cli.js"
@@ -25,7 +33,6 @@
   "keywords": [
     "pi",
     "pi-durable",
-    "pi-package",
     "agents",
     "inspector",
     "devtools",

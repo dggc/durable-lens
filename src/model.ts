@@ -13,6 +13,7 @@ export type BuildOptions = {
 	readonly restartLimit?: number;
 	readonly readMs?: number;
 	readonly decoder?: string;
+	readonly displayPath?: string;
 };
 
 const isObject = (value: unknown): value is JsonObject => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -367,7 +368,7 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 	const lens: Lens = {
 		source: {
 			kind: raw.kind,
-			path: raw.path,
+			path: options.displayPath ?? raw.path,
 			files: raw.files,
 			readAt: Date.now(),
 			readMs: options.readMs ?? 0,

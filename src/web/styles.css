@@ -1102,7 +1102,12 @@ a:hover {
 }
 
 .compare-col .card {
-	grid-template-columns: 70px 1fr;
+	grid-template-columns: 88px 1fr;
+	gap: 8px;
+}
+
+.compare-col .gutter {
+	font-size: 11px;
 }
 
 @media (max-width: 900px) {

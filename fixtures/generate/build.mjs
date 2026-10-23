@@ -1,7 +1,7 @@
 // Regenerate fixtures/stores/<version>/{sqlite,jsonl}{,-crashed}/ from every installed v<version>/ generator.
 // Usage: node fixtures/generate/build.mjs [version...]
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,4 +40,7 @@ for (const version of versions) {
 		rmSync(scratch, { recursive: true, force: true });
 		console.log(`fixtures: ${version} ${kind}`);
 	}
+	// Unreleased code has no version number; keep the commit it came from.
+	const source = join(here, `v${version}`, "SOURCE");
+	if (existsSync(source)) writeFileSync(join(stores, version, "SOURCE"), readFileSync(source));
 }

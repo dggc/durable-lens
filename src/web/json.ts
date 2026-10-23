@@ -28,7 +28,7 @@ export function jsonTree(value: Json | undefined, open = 2, depth = 0): HTMLElem
 	if (entries.length === 0) return h("span", { class: "j-punct" }, left + right);
 	const details = h("details", { class: "j-node" });
 	if (depth < open) details.open = true;
-	details.append(h("summary", null, h("span", { class: "j-punct" }, left), h("span", { class: "j-count" }, ` ${entries.length} ${Array.isArray(value) ? "items" : "keys"} `)));
+	details.append(h("summary", null, h("span", { class: "j-punct" }, left), h("span", { class: "j-count" }, ` ${entries.length} ${Array.isArray(value) ? "item" : "key"}${entries.length === 1 ? "" : "s"} `)));
 	const body = h("div", { class: "j-body" });
 	for (const [key, item] of entries) {
 		body.append(h("div", { class: "j-row" }, h("span", { class: "j-key" }, Array.isArray(value) ? key : JSON.stringify(key)), h("span", { class: "j-punct" }, ": "), jsonTree(item, open, depth + 1)));

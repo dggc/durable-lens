@@ -7,7 +7,12 @@ import { readSqlite } from "./store/sqlite.ts";
 import type { Decode, RawStore, ReadOptions } from "./store/types.ts";
 import type { Lens } from "./web/lens.ts";
 
-export type OpenOptions = ReadOptions & { readonly restartLimit?: number; readonly decoderName?: string };
+export type OpenOptions = ReadOptions & {
+	readonly restartLimit?: number;
+	readonly decoderName?: string;
+	/** Path shown in the page; defaults to the path as given, so a shared screenshot need not reveal where it lives. */
+	readonly displayPath?: string;
+};
 
 /** Read a SQLite file or a JSONL directory, never writing to it. */
 export async function readStore(path: string, options: ReadOptions = {}): Promise<RawStore> {
@@ -26,6 +31,7 @@ export async function openLens(path: string, options: OpenOptions = {}): Promise
 	return buildLens(raw, {
 		...(options.restartLimit === undefined ? {} : { restartLimit: options.restartLimit }),
 		...(options.decoderName === undefined ? {} : { decoder: options.decoderName }),
+		displayPath: options.displayPath ?? path,
 		readMs: Math.round(performance.now() - started),
 	});
 }
