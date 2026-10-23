@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { DEFAULT_RESTART_LIMIT } from "./model.ts";
 import { loadDecoder, openLens } from "./open.ts";
 import { serve } from "./server.ts";
+import { disposeScratch } from "./store/scratch.ts";
 
 const USAGE = `durable-lens: a read-only inspector for pi-durable storage
 
@@ -28,6 +29,18 @@ durable-lens never opens your store for writing. SQLite is read from a private c
 JSONL files are only read, so it is safe to point at a store a running harness owns.`;
 
 async function main(): Promise<number> {
+	// Before the first read: a snapshot copies the whole store, and an interrupted read must not leave it behind.
+	for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]] as const) {
+		process.once(signal, () => {
+			disposeScratch();
+			process.exit(code);
+		});
+	}
+	// The event loop drained while the read was still pending: only a decoder that never settles does that.
+	process.once("beforeExit", () => {
+		console.error("durable-lens: the read never finished; does the decoder return a promise that never settles?");
+		process.exitCode = 1;
+	});
 	const { values, positionals } = parseArgs({
 		allowPositionals: true,
 		options: {
@@ -77,20 +90,16 @@ async function main(): Promise<number> {
 	console.log(`durable-lens: ${lens?.format.version}, ${lens?.conversations.length} conversations, ${lens?.tasks.length} tasks`);
 	console.log(`  ${running.url}`);
 	console.log("  read-only; Ctrl-C to stop");
-	if (values.open) openBrowser(running.url);
-	await new Promise<void>((done) => {
-		process.once("SIGINT", done);
-		process.once("SIGTERM", done);
-	});
-	await running.close();
-	return 0;
+	if (values.open) openBrowser(running.openLink());
+	// Runs until a signal; the handlers above clean up and exit.
+	return new Promise<number>(() => {});
 }
 
 function openBrowser(url: string): void {
 	const [command, args] =
 		process.platform === "darwin" ? ["open", [url]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
 	const child = spawn(command as string, args as string[], { stdio: "ignore", detached: true });
-	child.on("error", () => console.error(`could not open a browser; open ${url}`));
+	child.on("error", () => console.error("could not open a browser; open the URL above"));
 	child.unref();
 }
 

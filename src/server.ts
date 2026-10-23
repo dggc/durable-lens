@@ -42,6 +42,11 @@ export type ServeOptions = OpenOptions & {
 
 export type Running = {
 	readonly url: string;
+	/**
+	 * A link that works once and redirects to `url`, for handing to a browser on its command line: command lines are
+	 * visible to other local users, and the token in `url` gives read access to the whole store.
+	 */
+	readonly openLink: () => string;
 	readonly server: Server;
 	readonly lens: () => Lens | undefined;
 	readonly close: () => Promise<void>;
@@ -77,6 +82,7 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 	if (!LOOPBACK.has(host)) throw new Error(`durable-lens only listens on loopback (127.0.0.1 or ::1), not ${host}`);
 	const token = options.token ?? randomBytes(18).toString("base64url");
 	const prefix = `/${token}/`;
+	const openCodes = new Set<string>();
 
 	let lens: Lens | undefined;
 	let error: string | undefined;
@@ -128,6 +134,11 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 		if (!allowedHosts.has(request.headers.host ?? "")) return send(response, 421, "text/plain", "wrong host\n");
 		if (request.method !== "GET" && request.method !== "HEAD") return send(response, 405, "text/plain", "read-only\n");
 		const url = new URL(request.url ?? "/", "http://localhost");
+		if (url.pathname.startsWith("/open/")) {
+			if (!openCodes.delete(url.pathname.slice("/open/".length))) return send(response, 404, "text/plain", "link already used\n");
+			response.writeHead(302, { ...SECURITY_HEADERS, Location: prefix, "Content-Length": 0 });
+			return void response.end();
+		}
 		if (!url.pathname.startsWith(prefix)) return send(response, 404, "text/plain", "not found\n");
 		const route = url.pathname.slice(prefix.length);
 		if (route === "api/version") {
@@ -152,6 +163,11 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 
 	return {
 		url: `http://127.0.0.1:${port}${prefix}`,
+		openLink: () => {
+			const code = randomBytes(18).toString("base64url");
+			openCodes.add(code);
+			return `http://127.0.0.1:${port}/open/${code}`;
+		},
 		server,
 		lens: () => lens,
 		close: async () => {

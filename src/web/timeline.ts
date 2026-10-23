@@ -97,7 +97,8 @@ function toolCall(ctx: Context, entry: LensEntry, call: Obj): HTMLElement {
 }
 
 function header(ctx: Context, entry: LensEntry): HTMLElement {
-	const label = KIND_LABEL[entry.kind] ?? entry.kind;
+	// Kinds are store content: an entry kind "toString" must not find Object.prototype.toString.
+	const label = Object.hasOwn(KIND_LABEL, entry.kind) ? (KIND_LABEL[entry.kind] as string) : entry.kind;
 	const toolName = entry.messages.filter(isObj).find((message) => message.role === "toolResult")?.toolName;
 	return h(
 		"div",
@@ -192,8 +193,13 @@ function gantt(ctx: Context, conversation: LensConversation, entries: LensEntry[
 	const times = entries.map((entry) => entry.at).filter((at): at is number => at !== undefined);
 	for (const task of own) if (task.kind.startsWith("pi.")) times.push(task.startedAt as number, task.endedAt ?? (task.startedAt as number));
 	if (times.length < 2) return null;
-	const start = Math.min(...times);
-	const end = Math.max(...times);
+	// Loops, not Math.min(...times): spreading a long transcript overflows the call stack.
+	let start = Number.POSITIVE_INFINITY;
+	let end = Number.NEGATIVE_INFINITY;
+	for (const at of times) {
+		if (at < start) start = at;
+		if (at > end) end = at;
+	}
 	const span = Math.max(end - start, 1);
 	const x = (ms: number) => `${Math.min(100, Math.max(0, ((ms - start) / span) * 100))}%`;
 	const lanes = new Map<string, LensTask[]>();

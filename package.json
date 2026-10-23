@@ -45,7 +45,8 @@
     "test": "npm run build && node --test --test-reporter=spec test/*.test.ts",
     "fixtures": "node fixtures/generate/build.mjs",
     "start": "node dist/cli.js",
-    "check:ui": "node scripts/check-ui.mjs"
+    "check:ui": "node scripts/check-ui.mjs",
+    "prepublishOnly": "npm test"
   },
   "devDependencies": {
     "@types/node": "22.19.19",

@@ -3,7 +3,7 @@ import type { LensUsage } from "./lens.ts";
 import type { Context } from "./state.ts";
 
 function table(title: string, rows: [string, LensUsage, string?][], note?: string): HTMLElement {
-	const max = Math.max(...rows.map(([, usage]) => usage.cost), 1e-12);
+	const max = rows.reduce((top, [, usage]) => Math.max(top, usage.cost), 1e-12);
 	return h(
 		"section",
 		{ class: "usage-table" },

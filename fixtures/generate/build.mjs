@@ -25,19 +25,22 @@ function run(version, args) {
 for (const version of versions) {
 	for (const kind of ["sqlite", "jsonl"]) {
 		const scratch = mkdtempSync(join(tmpdir(), "durable-lens-gen-"));
-		const store = kind === "sqlite" ? join(scratch, "session.sqlite") : join(scratch, "session");
-		run(version, ["generate", kind, store, "4"]);
-		// Right after the last crash: SQLite still has its -wal and -shm, JSONL whatever the dead owner left.
-		const crashed = join(stores, version, `${kind}-crashed`);
-		rmSync(crashed, { recursive: true, force: true });
-		mkdirSync(crashed, { recursive: true });
-		cpSync(scratch, crashed, { recursive: true });
-		run(version, ["settle", kind, store]);
-		const idle = join(stores, version, kind);
-		rmSync(idle, { recursive: true, force: true });
-		mkdirSync(idle, { recursive: true });
-		cpSync(scratch, idle, { recursive: true });
-		rmSync(scratch, { recursive: true, force: true });
+		try {
+			const store = kind === "sqlite" ? join(scratch, "session.sqlite") : join(scratch, "session");
+			run(version, ["generate", kind, store, "4"]);
+			// Right after the last crash: SQLite still has its -wal and -shm, JSONL whatever the dead owner left.
+			const crashed = join(stores, version, `${kind}-crashed`);
+			rmSync(crashed, { recursive: true, force: true });
+			mkdirSync(crashed, { recursive: true });
+			cpSync(scratch, crashed, { recursive: true });
+			run(version, ["settle", kind, store]);
+			const idle = join(stores, version, kind);
+			rmSync(idle, { recursive: true, force: true });
+			mkdirSync(idle, { recursive: true });
+			cpSync(scratch, idle, { recursive: true });
+		} finally {
+			rmSync(scratch, { recursive: true, force: true });
+		}
 		console.log(`fixtures: ${version} ${kind}`);
 	}
 	// Unreleased code has no version number; keep the commit it came from.

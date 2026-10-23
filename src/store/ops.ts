@@ -51,12 +51,35 @@ function resolve(root: Json, path: Segment[]): Json {
 	return current;
 }
 
+const isIndex = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
+
+/** Verb, arity and payload of a decoded op, as Chord's `assertValidOp` checks them; paths are checked where used. */
+function checkOp(op: unknown): asserts op is unknown[] {
+	if (!Array.isArray(op) || op.length === 0) throw new OpError("op is not a tuple");
+	const arity: Record<string, number> = { r: 2, s: 3, d: 2, a: 3, t: 3, p: 5, m: 3 };
+	const name = String(op[0]);
+	if (!Object.hasOwn(arity, name)) throw new OpError(`unknown op ${name}`);
+	if (op.length !== arity[name]) throw new OpError(`${name} op with ${op.length} elements`);
+	if (name === "a" && typeof op[2] !== "string") throw new OpError("append of a non-string");
+	if (name === "t" && !isIndex(op[2])) throw new OpError("trim count is not a non-negative integer");
+	if (name === "p" && (!isIndex(op[2]) || !isIndex(op[3]) || !Array.isArray(op[4]))) throw new OpError("invalid splice");
+	if (name === "m") {
+		const permutation = op[2];
+		if (!Array.isArray(permutation)) throw new OpError("permutation is not an array");
+		const seen = new Uint8Array(permutation.length);
+		for (const index of permutation) {
+			if (!isIndex(index) || index >= permutation.length || seen[index] !== 0) throw new OpError("permutation is not a bijection");
+			seen[index] = 1;
+		}
+	}
+}
+
 /** Apply one batch of ops to `target` in place, returning the new root (an `r` op replaces it). */
 export function applyOps(target: Json, ops: unknown): Json {
 	if (!Array.isArray(ops)) throw new OpError("ops are not an array");
 	let root = target;
 	for (const op of ops) {
-		if (!Array.isArray(op) || typeof op[0] !== "string") throw new OpError("op is not a tuple");
+		checkOp(op);
 		const name = op[0];
 		if (name === "r") {
 			root = structuredClone(op[1] as Json);
@@ -68,13 +91,13 @@ export function applyOps(target: Json, ops: unknown): Json {
 			if (!Array.isArray(array)) throw new OpError(`path ${JSON.stringify(path)} is not an array`);
 			if (name === "p") {
 				const [, , start, deleteCount, items] = op as [string, Segment[], number, number, Json[]];
-				if (!Number.isInteger(start) || !Number.isInteger(deleteCount) || !Array.isArray(items)) {
-					throw new OpError("invalid splice");
-				}
-				array.splice(start, deleteCount, ...structuredClone(items));
+				array.splice(start, deleteCount);
+				// In chunks, as Chord does: spreading a huge array into one call overflows the stack.
+				const copy = structuredClone(items);
+				for (let offset = 0; offset < copy.length; offset += 10_000) array.splice(start + offset, 0, ...copy.slice(offset, offset + 10_000));
 			} else {
 				const permutation = op[2] as number[];
-				if (!Array.isArray(permutation) || permutation.length !== array.length) throw new OpError("invalid permutation");
+				if (permutation.length !== array.length) throw new OpError("permutation does not match the array");
 				const previous = array.slice();
 				permutation.forEach((from, index) => {
 					array[index] = previous[from] as Json;
@@ -116,14 +139,14 @@ export function applyOps(target: Json, ops: unknown): Json {
 				break;
 			case "a": {
 				const current = read();
-				if (typeof current !== "string" || typeof op[2] !== "string") throw new OpError(`append to a non-string`);
-				write(current + op[2]);
+				if (typeof current !== "string") throw new OpError("append to a non-string");
+				write(current + (op[2] as string));
 				break;
 			}
 			case "t": {
 				const current = read();
-				if (typeof current !== "string" || typeof op[2] !== "number") throw new OpError(`trim of a non-string`);
-				write(current.slice(op[2]));
+				if (typeof current !== "string") throw new OpError("trim of a non-string");
+				write(current.slice(op[2] as number));
 				break;
 			}
 			default:

@@ -37,7 +37,7 @@ durable-lens opens nothing of yours for writing. That takes more care than a rea
 | pi-durable's storage with `HarnessOptions.readOnly` (main) | yes: migrates a schema v1 database to v2, checkpoints the WAL into the database file, truncates a torn JSONL line | yes |
 | durable-lens | **no** | **yes** |
 
-For SQLite, durable-lens copies the database and its WAL into a private temporary directory (a reflink where the filesystem has them) and opens the copy. The copy is kept only if the WAL header and the database's size and mtime are the same before and after it, since a checkpoint or WAL reset in between could tear it; otherwise it copies again. For JSONL it reads the files, skips a last line still being appended, and reads again if the owner reclaimed a sidecar in between. It takes no locks, so it never slows the owner's checkpoints.
+For SQLite, durable-lens copies the database and its WAL into a private temporary directory (a reflink where the filesystem has them) and opens the copy. The copy is kept only if the WAL header and the database's size and mtime are the same before and after it, since a checkpoint or WAL reset in between could tear it; otherwise it copies again. For JSONL it reads the files, skips a last line still being appended, and reads again if the owner reclaimed a sidecar in between. It takes no locks, so it never slows the owner's checkpoints. The copy is a full copy of your transcripts: it lives in a directory only you can read, is deleted after each read, on exit and on Ctrl-C, and a later run deletes copies a killed process left behind.
 
 The tests hash every file of every fixture before and after reading it, also while a pi-durable process holds the store open, and read 25 times while an owner commits every few milliseconds. See [docs/reading-pi-durable-storage.md](docs/reading-pi-durable-storage.md) for the measurements.
 
@@ -74,7 +74,7 @@ The decoder runs in the durable-lens process and reads its own keys; durable-len
 
 ## Untrusted content
 
-Transcripts carry prompts, tool output and whatever a model wrote. The page puts all of it on screen as text: Markdown is rendered by a small renderer that builds DOM nodes, raw HTML stays literal, and links show their target without becoming clickable. The server listens on 127.0.0.1 only, serves everything under a random token, rejects requests whose `Host` is not its own (DNS rebinding), answers only GET, and sends a Content-Security-Policy that allows nothing but its own scripts and styles. Nothing is fetched from anywhere else.
+Transcripts carry prompts, tool output and whatever a model wrote. The page puts all of it on screen as text: Markdown is rendered by a small renderer that builds DOM nodes, raw HTML stays literal, and links show their target without becoming clickable. The server listens on 127.0.0.1 only, serves everything under a random token, rejects requests whose `Host` is not its own (DNS rebinding), answers only GET, and sends a Content-Security-Policy that allows nothing but its own scripts and styles. Nothing is fetched from anywhere else. `--open` hands the browser a link that works once and redirects to the tokened URL, because command lines are visible to other users of the machine.
 
 ## Options
 
@@ -98,6 +98,7 @@ durable-lens <store> [options]
 
 - Reads the whole store into memory and copies a SQLite store on each change. Fine for development sessions; very large stores will be slow.
 - SQLite and JSONL only. IndexedDB, Cloudflare Durable Object, Postgres and CouchDB stores are not read yet.
+- Rewinding a document steps through its last 100 revisions (fewer when they add up to more than 4 MB).
 - Whether a pending task is blocked by a missing definition depends on the host's registry, which the store does not record.
 - Parked tasks are marked from `restarts` and `--restart-limit`, since the store does not record the host's limit.
 

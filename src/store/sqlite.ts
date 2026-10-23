@@ -4,16 +4,17 @@
 // writes read marks into the -shm of a live one, and `immutable=1` skips the WAL and returns stale data. So the
 // database and its WAL are copied (a reflink where the filesystem supports one), and the copy is opened.
 //
-// The copy is consistent when no WAL reset happened while it was taken: in WAL mode the database file only changes by
-// checkpointing frames that stay in the WAL until a reset, and a reset changes the WAL header's salts. Opening the copy
-// replays every committed frame over the database pages. A change of the WAL header, or of the database file's size or
-// mtime, during the copy starts it over.
+// The copy is consistent when no WAL reset happened while it was taken. In WAL mode the database file changes only by
+// checkpointing committed frames, which stay in the WAL until a reset, and a reset changes the WAL header's salts. So
+// while a WAL with frames keeps the same header, a checkpoint that tears the database copy is harmless: opening the
+// copy replays every committed frame over those pages. Without such a WAL (idle, or rollback-journal mode), the
+// database and its journal must not change at all during the copy. Otherwise the copy starts over.
 
-import { closeSync, constants, copyFileSync, existsSync, mkdtempSync, openSync, readSync, rmSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { closeSync, constants, copyFileSync, openSync, readSync, rmSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
+import { makeScratch } from "./scratch.ts";
 import type { DecodeSite, FileInfo, Json, JsonObject, RawDocument, RawStore, ReadOptions } from "./types.ts";
 
 const SIDE_FILES = ["-wal", "-journal"] as const;
@@ -37,11 +38,15 @@ function head(path: string, bytes: number): Buffer | undefined {
 	}
 }
 
-function fingerprint(path: string): string {
-	const wal = head(`${path}-wal`, 32);
-	const stat = statSync(path);
-	return `${stat.size}:${stat.mtimeMs}:${wal === undefined ? "-" : wal.toString("hex")}`;
+/** The WAL header (salts and checkpoint sequence), `-` without a WAL file, empty for an empty one. */
+const walHeader = (path: string): string => head(`${path}-wal`, 32)?.toString("hex") ?? "-";
+
+function stamp(path: string): string {
+	const stat = statSync(path, { throwIfNoEntry: false });
+	return stat === undefined ? "-" : `${stat.size}:${stat.mtimeMs}:${stat.ino}`;
 }
+
+const isMissing = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 
 export type Snapshot = {
 	readonly path: string;
@@ -53,34 +58,43 @@ export type Snapshot = {
 /** Copy a SQLite database and its WAL or rollback journal into a new private directory. */
 export async function snapshotSqlite(source: string): Promise<Snapshot> {
 	if (head(source, 16)?.toString("latin1") !== "SQLite format 3\0") throw new Error(`${source} is not a SQLite database`);
-	const directory = mkdtempSync(join(tmpdir(), "durable-lens-"));
-	const target = join(directory, basename(source));
-	const dispose = () => rmSync(directory, { recursive: true, force: true });
+	const scratch = makeScratch();
+	const target = join(scratch.path, basename(source));
 	try {
 		for (let attempt = 1; ; attempt++) {
-			const before = fingerprint(source);
-			copyFileSync(source, target, constants.COPYFILE_FICLONE);
-			for (const suffix of SIDE_FILES) {
-				rmSync(target + suffix, { force: true });
-				if (existsSync(source + suffix)) copyFileSync(source + suffix, target + suffix, constants.COPYFILE_FICLONE);
+			const wal = walHeader(source);
+			const database = stamp(source);
+			const journal = stamp(`${source}-journal`);
+			let copied = true;
+			for (const suffix of ["", ...SIDE_FILES, "-shm"]) rmSync(target + suffix, { force: true });
+			try {
+				copyFileSync(source, target, constants.COPYFILE_FICLONE);
+				for (const suffix of SIDE_FILES) {
+					try {
+						copyFileSync(source + suffix, target + suffix, constants.COPYFILE_FICLONE);
+					} catch (error) {
+						if (!isMissing(error)) throw error;
+					}
+				}
+			} catch (error) {
+				// The owner removed a file between the checks and the copy, for instance its WAL on close.
+				if (!isMissing(error)) throw error;
+				copied = false;
 			}
-			const copied = head(`${target}-wal`, 32);
-			const after = fingerprint(source);
-			const walOfAfter = after.slice(after.lastIndexOf(":") + 1);
-			if (before === after && walOfAfter === (copied === undefined ? "-" : copied.toString("hex"))) {
-				const files = ["", ...SIDE_FILES, "-shm"]
-					.filter((suffix) => existsSync(source + suffix))
-					.map((suffix) => {
-						const stat = statSync(source + suffix);
-						return { name: basename(source) + suffix, size: stat.size, mtimeMs: stat.mtimeMs };
-					});
-				return { path: target, files, attempts: attempt, dispose };
+			const stableWal = copied && walHeader(source) === wal && walHeader(target) === wal;
+			const framed = wal !== "-" && wal !== "";
+			if (stableWal && stamp(`${source}-journal`) === journal && (framed || stamp(source) === database)) {
+				const files = ["", ...SIDE_FILES, "-shm"].flatMap((suffix) => {
+					const stat = statSync(source + suffix, { throwIfNoEntry: false });
+					return stat === undefined ? [] : [{ name: basename(source) + suffix, size: stat.size, mtimeMs: stat.mtimeMs }];
+				});
+				return { path: target, files, attempts: attempt, dispose: scratch.dispose };
 			}
-			if (attempt >= MAX_ATTEMPTS) throw new Error(`${source} kept changing while it was copied`);
+			if (attempt >= MAX_ATTEMPTS) throw new Error(`${source} kept changing while it was copied (${MAX_ATTEMPTS} attempts)`);
 			await delay(25 * attempt);
 		}
 	} catch (error) {
-		dispose();
+		scratch.dispose();
 		throw error;
 	}
 }

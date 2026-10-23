@@ -3,23 +3,63 @@
 
 import { type Child, h } from "./dom.ts";
 
-function inline(text: string): Child[] {
+// Every pattern here bounds the work it can do from one position, so no transcript text makes rendering slow.
+const EMPHASIS = /\*\*([^*\n]{1,2000})\*\*|(?<![*\w])\*([^*\s][^*\n]{0,2000})\*(?![*\w])|\[([^\]\n]{1,300})\]\(([^)\s]{1,1000})\)/g;
+
+/** Bold, italic and [label](target) in text that holds no code spans. */
+function emphasis(text: string): Child[] {
 	const out: Child[] = [];
-	// Code spans first, so their contents stay literal; then **bold**, *italic*, and [label](target).
-	const pattern = /(`+)([\s\S]*?[^`])\1(?!`)|\*\*([^*]+)\*\*|(?<![*\w])\*([^*\s][^*]*)\*(?![*\w])|\[([^\]]+)\]\(([^)\s]+)\)/g;
 	let last = 0;
-	for (const match of text.matchAll(pattern)) {
+	for (const match of text.matchAll(EMPHASIS)) {
 		const index = match.index ?? 0;
 		if (index > last) out.push(text.slice(last, index));
-		if (match[2] !== undefined) out.push(h("code", null, match[2]));
-		else if (match[3] !== undefined) out.push(h("strong", null, ...inline(match[3])));
-		else if (match[4] !== undefined) out.push(h("em", null, ...inline(match[4])));
-		else if (match[5] !== undefined) {
-			out.push(h("span", { class: "md-link", title: `link target (not followed): ${match[6]}` }, match[5], h("span", { class: "md-target" }, ` ⟨${match[6]}⟩`)));
+		if (match[1] !== undefined) out.push(h("strong", null, ...emphasis(match[1])));
+		else if (match[2] !== undefined) out.push(h("em", null, ...emphasis(match[2])));
+		else if (match[3] !== undefined) {
+			out.push(h("span", { class: "md-link", title: `link target (not followed): ${match[4]}` }, match[3], h("span", { class: "md-target" }, ` ⟨${match[4]}⟩`)));
 		}
 		last = index + match[0].length;
 	}
 	if (last < text.length) out.push(text.slice(last));
+	return out;
+}
+
+/**
+ * Inline Markdown: code spans first, so their contents stay literal, then emphasis and links. Code spans are found by
+ * scanning, not by a regex: a backtracking pattern takes cubic time on a long run of backticks.
+ */
+export function inline(text: string): Child[] {
+	const out: Child[] = [];
+	let plain = 0;
+	let i = 0;
+	while (i < text.length) {
+		const open = text.indexOf("`", i);
+		if (open === -1) break;
+		let run = 1;
+		while (text[open + run] === "`") run++;
+		// The closing run must have exactly the opening run's length.
+		const fence = "`".repeat(run);
+		let close = -1;
+		for (let from = open + run; ; ) {
+			const at = text.indexOf(fence, from);
+			if (at === -1) break;
+			let length = run;
+			while (text[at + length] === "`") length++;
+			if (length === run) {
+				close = at;
+				break;
+			}
+			from = at + length;
+		}
+		if (close === -1 || close === open + run) {
+			i = open + run;
+			continue;
+		}
+		if (open > plain) out.push(...emphasis(text.slice(plain, open)));
+		out.push(h("code", null, text.slice(open + run, close)));
+		i = plain = close + run;
+	}
+	if (plain < text.length) out.push(...emphasis(text.slice(plain)));
 	return out;
 }
 
@@ -31,7 +71,9 @@ function table(rows: string[]): HTMLElement | undefined {
 			.replace(/\|$/, "")
 			.split("|")
 			.map((cell) => cell.trim());
-	if (rows.length < 2 || !/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(rows[1] as string)) return undefined;
+	const rule = rows[1];
+	// Length first: the rule pattern backtracks quadratically on a long line of spaces.
+	if (rule === undefined || rule.length > 1000 || !/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/.test(rule)) return undefined;
 	const head = cells(rows[0] as string);
 	return h(
 		"table",

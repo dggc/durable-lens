@@ -7,7 +7,9 @@ import type { Lens, LensConversation, LensDocument, LensEntry, LensSubmission, L
 
 /** pi-durable's default `settings.restartLimit` (1.4.0). */
 export const DEFAULT_RESTART_LIMIT = 5;
-const MAX_STATES = 500;
+/** Rewindable documents keep at most this many recent states for the page, and at most STATE_BYTES of them. */
+const MAX_STATES = 100;
+const STATE_BYTES = 4 * 1024 * 1024;
 
 export type BuildOptions = {
 	readonly restartLimit?: number;
@@ -95,7 +97,9 @@ function taskOf(record: JsonObject, restartLimit: number): LensTask {
 		background: record.background === true,
 		abortRequested: record.abortRequested === true,
 		// A record is parked while it can run but crashed `restartLimit` times in a row; terminal ones are past it.
-		parked: restarts !== undefined && restarts >= restartLimit && (status === "pending" || status === "running"),
+		// As pi-durable's scheduler decides it: an abort-marked task still runs its abort handler, so it is not parked.
+		parked:
+			restarts !== undefined && restarts >= restartLimit && record.abortRequested !== true && (status === "pending" || status === "running"),
 	};
 	if (num(record.version) !== undefined) task.version = Number(record.version);
 	if (num(record.owner) !== undefined) task.owner = Number(record.owner);
@@ -150,14 +154,16 @@ function documentOf(raw: RawDocument): LensDocument {
 
 	const rewindable = document.history === "rewindable";
 	const states: { seq: number; value: Json }[] = [];
+	// Copies only for the states the page can keep: a long session has thousands of revisions.
+	const keepFrom = raw.revisions.length - MAX_STATES;
 	let value: Json | undefined;
 	try {
-		for (const revision of raw.revisions) {
+		for (const [index, revision] of raw.revisions.entries()) {
 			if (revision.kind === "base") value = structuredClone(revision.content);
 			else if (value === undefined) continue; // deltas before the first base the store kept
 			else value = applyOps(value, revision.content);
 			document.version = revision.version;
-			if (rewindable) states.push({ seq: revision.seq, value: structuredClone(value) });
+			if (rewindable && index >= keepFrom) states.push({ seq: revision.seq, value: structuredClone(value) });
 		}
 		document.value = value ?? null;
 		if (value === undefined && raw.revisions.length > 0) document.error = "no base revision";
@@ -165,7 +171,12 @@ function documentOf(raw: RawDocument): LensDocument {
 		document.error = `could not apply revision: ${(error as Error).message}`;
 		document.value = value ?? null;
 	}
-	if (rewindable) document.states = states.slice(-MAX_STATES);
+	if (rewindable) {
+		let bytes = 0;
+		let first = states.length;
+		while (first > 0 && bytes < STATE_BYTES) bytes += JSON.stringify(states[--first]?.value).length;
+		document.states = states.slice(bytes > STATE_BYTES ? first + 1 : first);
+	}
 	return document;
 }
 
@@ -336,9 +347,10 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 		const text = title === undefined ? undefined : firstText(title);
 		if (text !== undefined) conversation.title = text.length > 120 ? `${text.slice(0, 117)}…` : text;
 		const times = own.map((entry) => entry.at).filter((at): at is number => at !== undefined);
-		if (times.length > 0) {
-			conversation.firstAt = Math.min(...times);
-			conversation.lastAt = Math.max(...times);
+		// A loop, not Math.min(...times): spreading a long transcript overflows the call stack.
+		for (const at of times) {
+			if (conversation.firstAt === undefined || at < conversation.firstAt) conversation.firstAt = at;
+			if (conversation.lastAt === undefined || at > conversation.lastAt) conversation.lastAt = at;
 		}
 		return conversation;
 	});
@@ -348,20 +360,26 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 		if (up !== undefined) conversationById.get(up)?.children.push(conversation.id);
 	}
 
-	const usage = { total: emptyUsage(), byModel: {} as Record<string, LensUsage>, byTool: {} as Record<string, LensUsage> };
+	// Model and tool names are store content: a tool may be called `__proto__` or `toString`, so no plain-object keys.
+	const total = emptyUsage();
+	const byModel = new Map<string, LensUsage>();
+	const byTool = new Map<string, LensUsage>();
 	for (const document of documents) {
 		if (document.kind !== "pi.usage" || document.retiredAt !== undefined || !isObject(document.value)) continue;
-		for (const [bucket, target] of [["models", usage.byModel], ["tools", usage.byTool]] as const) {
+		for (const [bucket, target] of [["models", byModel], ["tools", byTool]] as const) {
 			const values = document.value[bucket];
 			if (!isObject(values)) continue;
 			for (const [key, value] of Object.entries(values)) {
 				const counted = toUsage(value);
-				target[key] ??= emptyUsage();
-				addUsage(target[key], counted);
-				addUsage(usage.total, counted);
+				const sum = target.get(key) ?? emptyUsage();
+				addUsage(sum, counted);
+				target.set(key, sum);
+				addUsage(total, counted);
 			}
 		}
 	}
+	// Object.fromEntries defines own properties, so "__proto__" stays an ordinary key.
+	const usage = { total, byModel: Object.fromEntries(byModel), byTool: Object.fromEntries(byTool) };
 	for (const document of documents) if (document.error !== undefined) warnings.push(`document ${document.id} (${document.kind}): ${document.error}`);
 
 	const { version, hints } = detectVersion(raw, tasks, entries);
