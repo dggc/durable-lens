@@ -1,0 +1,4 @@
+{"format":1,"type":"record","seq":21,"ordinal":0,"payload":{"type":"document","id":20,"content":{"version":1,"kind":"base","value":{"items":["#412 is a divide-by-zero in measure()"]}}}}
+{"format":1,"type":"record","seq":55,"ordinal":0,"payload":{"type":"document","id":20,"content":{"version":1,"kind":"delta","ops":[["p",["items"],1,0,["Subagent drafted the #412 patch"]]]}}}
+{"format":1,"type":"record","seq":71,"ordinal":0,"payload":{"type":"document","id":20,"content":{"version":1,"kind":"delta","ops":[["p",["items"],2,0,["Release 2.4.0 after #412 lands"]]]}}}
+{"format":1,"type":"record","seq":72,"ordinal":0,"payload":{"type":"document","id":20,"content":{"version":1,"kind":"base","value":{"items":["#412 is a divide-by-zero in measure()","Subagent drafted the #412 patch","Release 2.4.0 after #412 lands","#418 moves to 2.4.1"]}}}}

@@ -1,0 +1,46 @@
+{
+  "name": "durable-lens",
+  "version": "0.1.0",
+  "description": "Local, read-only inspector for pi-durable storage: transcript, task graph, documents, cost and time on one timeline.",
+  "license": "MIT",
+  "author": "Daniel Galinkin",
+  "type": "module",
+  "bin": {
+    "durable-lens": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "keywords": [
+    "pi",
+    "pi-durable",
+    "pi-package",
+    "agents",
+    "inspector",
+    "devtools",
+    "sqlite",
+    "jsonl"
+  ],
+  "scripts": {
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.build.json && tsc -p src/web/tsconfig.json && node scripts/copy-web.mjs",
+    "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
+    "test": "npm run build && node --test --test-reporter=spec test/*.test.ts",
+    "fixtures": "node fixtures/generate/build.mjs",
+    "start": "node dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "typescript": "7.0.2"
+  }
+}
