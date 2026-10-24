@@ -34,13 +34,20 @@ try {
 		await page.goto(running.url + hash);
 		await page.waitForSelector(".tabs");
 		// Open every collapsed block, so nothing escapes the check by being hidden.
-		await page.evaluate(() => document.querySelectorAll("details").forEach((element) => (element.open = true)));
-		const injected = await page.evaluate(() => document.querySelectorAll("#app img, #app script, #app iframe, #app object, #app embed, #app [onerror], #app [onclick], #app a[href^='javascript']").length);
+		await page.evaluate(() => {
+			for (const element of document.querySelectorAll("details")) element.open = true;
+		});
+		const injected = await page.evaluate(
+			() =>
+				document.querySelectorAll("#app img, #app script, #app iframe, #app object, #app embed, #app [onerror], #app [onclick], #app a[href^='javascript']")
+					.length,
+		);
 		if (injected > 0) problems.push(`${hash}: ${injected} elements parsed from content`);
 	}
 	await page.goto(`${running.url}#v=timeline&c=1`);
 	const text = await page.evaluate(() => document.body.innerText);
-	if (!text.includes(`<img src=x onerror="alert('xss')">`) || !text.includes("<script>alert(1)</script>")) problems.push("the untrusted HTML is not shown as text");
+	if (!text.includes(`<img src=x onerror="alert('xss')">`) || !text.includes("<script>alert(1)</script>"))
+		problems.push("the untrusted HTML is not shown as text");
 	console.log(`checked ${hashes.length} views`);
 } finally {
 	await browser.close();

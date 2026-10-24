@@ -1,23 +1,22 @@
 // The local web server: loopback only, one random token in every path, and nothing it serves loads from elsewhere.
 
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type OpenOptions, openLens } from "./open.ts";
 import type { Lens } from "./web/lens.ts";
 
 // The built page sits next to this file in dist/; from the TypeScript sources (tests), it is in ../dist/web.
-const WEB = fileURLToPath(
-	existsSync(new URL("./web/app.js", import.meta.url)) ? new URL("./web/", import.meta.url) : new URL("../dist/web/", import.meta.url),
-);
+const WEB = fileURLToPath(existsSync(new URL("./web/app.js", import.meta.url)) ? new URL("./web/", import.meta.url) : new URL("../dist/web/", import.meta.url));
 const LOOPBACK = new Set(["127.0.0.1", "::1"]);
 const TYPES: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
 	".js": "text/javascript; charset=utf-8",
 	".css": "text/css; charset=utf-8",
+	".svg": "image/svg+xml",
 };
 const SECURITY_HEADERS = {
 	"Content-Security-Policy":
@@ -52,27 +51,36 @@ export type Running = {
 	readonly close: () => Promise<void>;
 };
 
-/** Size and mtime of the store's files, read with stat() only. */
-function fingerprint(path: string, lens: Lens | undefined): string {
-	// The -shm changes with every read lock the owner takes; it holds no data of its own.
-	const names = lens?.source.files.map((file) => file.name).filter((name) => !name.endsWith("-shm")) ?? [];
-	const base = lens?.source.kind === "jsonl" ? path : resolve(path, "..");
-	const parts: string[] = [];
+/** Size and mtime of the store's files, read with stat() only; a stat that fails (EACCES, say) is part of the print. */
+function fingerprint(path: string): string {
 	try {
-		const stat = statSync(path);
-		parts.push(`${stat.size}:${stat.mtimeMs}`);
-	} catch {
-		parts.push("missing");
+		return statFingerprint(path);
+	} catch (error) {
+		return `error:${(error as NodeJS.ErrnoException).code ?? "unknown"}`;
 	}
-	for (const name of names) {
-		const stat = statSync(join(base, name), { throwIfNoEntry: false });
-		parts.push(stat === undefined ? `${name}:-` : `${name}:${stat.size}:${stat.mtimeMs}`);
-	}
-	if (lens?.source.kind === "sqlite") {
-		for (const suffix of ["-wal", "-journal"]) {
-			const stat = statSync(path + suffix, { throwIfNoEntry: false });
-			parts.push(stat === undefined ? `${suffix}:-` : `${suffix}:${stat.size}:${stat.mtimeMs}`);
+}
+
+function statFingerprint(path: string): string {
+	const stat = statSync(path, { throwIfNoEntry: false });
+	if (stat === undefined) return "missing";
+	const parts: string[] = [];
+	const add = (name: string, file: string) => {
+		const info = statSync(file, { throwIfNoEntry: false });
+		parts.push(info === undefined ? `${name}:-` : `${name}:${info.size}:${info.mtimeMs}`);
+	};
+	if (stat.isDirectory()) {
+		// A JSONL store: the main file and its task and document sidecars.
+		let names: string[] = [];
+		try {
+			names = readdirSync(path).filter((name) => name === "main.jsonl" || /^(doc|task)-\d+\.jsonl$/.test(name));
+		} catch {
+			parts.push("unreadable");
 		}
+		for (const name of names.sort()) add(name, join(path, name));
+	} else {
+		parts.push(`${stat.size}:${stat.mtimeMs}`);
+		// The -shm changes with every read lock the owner takes and holds no data of its own, so it is left out.
+		for (const suffix of ["-wal", "-journal"]) add(suffix, path + suffix);
 	}
 	return parts.join("|");
 }
@@ -91,6 +99,8 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 	let reading: Promise<void> | undefined;
 	const reread = () => {
 		reading ??= (async () => {
+			// Taken before the read: a commit that lands while it runs then differs from `seen`, and the next poll rereads.
+			const before = fingerprint(path);
 			try {
 				const next = await openLens(path, options);
 				lens = next;
@@ -98,7 +108,7 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 			} catch (cause) {
 				error = (cause as Error).message;
 			}
-			seen = fingerprint(path, lens);
+			seen = before;
 			version++;
 		})().finally(() => {
 			reading = undefined;
@@ -120,7 +130,7 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 		options.watch === false
 			? undefined
 			: setInterval(() => {
-					if (reading === undefined && fingerprint(path, lens) !== seen) void reread();
+					if (reading === undefined && fingerprint(path) !== seen) void reread();
 				}, options.pollMs ?? 1000);
 	timer?.unref();
 
@@ -131,42 +141,60 @@ export async function serve(path: string, options: ServeOptions = {}): Promise<R
 
 	function handle(request: IncomingMessage, response: ServerResponse): void {
 		// A page on another origin that rebinds its DNS name to 127.0.0.1 still sends its own Host.
-		if (!allowedHosts.has(request.headers.host ?? "")) return send(response, 421, "text/plain", "wrong host\n");
-		if (request.method !== "GET" && request.method !== "HEAD") return send(response, 405, "text/plain", "read-only\n");
+		if (!allowedHosts.has(request.headers.host ?? "")) {
+			send(response, 421, "text/plain", "wrong host\n");
+			return;
+		}
+		if (request.method !== "GET" && request.method !== "HEAD") {
+			send(response, 405, "text/plain", "read-only\n");
+			return;
+		}
 		const url = new URL(request.url ?? "/", "http://localhost");
 		if (url.pathname.startsWith("/open/")) {
-			if (!openCodes.delete(url.pathname.slice("/open/".length))) return send(response, 404, "text/plain", "link already used\n");
+			if (!openCodes.delete(url.pathname.slice("/open/".length))) {
+				send(response, 404, "text/plain", "link already used\n");
+				return;
+			}
 			response.writeHead(302, { ...SECURITY_HEADERS, Location: prefix, "Content-Length": 0 });
-			return void response.end();
+			response.end();
+			return;
 		}
-		if (!url.pathname.startsWith(prefix)) return send(response, 404, "text/plain", "not found\n");
+		if (!url.pathname.startsWith(prefix)) {
+			send(response, 404, "text/plain", "not found\n");
+			return;
+		}
 		const route = url.pathname.slice(prefix.length);
 		if (route === "api/version") {
-			return send(response, 200, "application/json", JSON.stringify({ version, error: error ?? null }));
+			send(response, 200, "application/json", JSON.stringify({ version, error: error ?? null }));
+			return;
 		}
 		if (route === "api/lens") {
-			return send(response, 200, "application/json", JSON.stringify({ version, error: error ?? null, lens }));
+			send(response, 200, "application/json", JSON.stringify({ version, error: error ?? null, lens }));
+			return;
 		}
 		const file = route === "" ? "index.html" : route;
 		const extension = file.slice(file.lastIndexOf("."));
-		if (!/^[a-z0-9-]+\.(html|js|css)$/.test(file) || TYPES[extension] === undefined) {
-			return send(response, 404, "text/plain", "not found\n");
+		if (!/^[a-z0-9-]+\.(html|js|css|svg)$/.test(file) || TYPES[extension] === undefined) {
+			send(response, 404, "text/plain", "not found\n");
+			return;
 		}
 		let body: Buffer;
 		try {
 			body = readFileSync(join(WEB, file));
 		} catch {
-			return send(response, 404, "text/plain", "not found\n");
+			send(response, 404, "text/plain", "not found\n");
+			return;
 		}
 		send(response, 200, TYPES[extension] as string, body);
 	}
 
+	const origin = host === "::1" ? `http://[::1]:${port}` : `http://127.0.0.1:${port}`;
 	return {
-		url: `http://127.0.0.1:${port}${prefix}`,
+		url: `${origin}${prefix}`,
 		openLink: () => {
 			const code = randomBytes(18).toString("base64url");
 			openCodes.add(code);
-			return `http://127.0.0.1:${port}/open/${code}`;
+			return `${origin}/open/${code}`;
 		},
 		server,
 		lens: () => lens,

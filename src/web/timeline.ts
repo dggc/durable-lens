@@ -49,7 +49,10 @@ function isEmpty(value: Json): boolean {
 function textParts(content: Json | undefined): string[] {
 	if (typeof content === "string") return [content];
 	if (!Array.isArray(content)) return [];
-	return content.filter(isObj).filter((part) => part.type === "text" && typeof part.text === "string").map((part) => String(part.text));
+	return content
+		.filter(isObj)
+		.filter((part) => part.type === "text" && typeof part.text === "string")
+		.map((part) => String(part.text));
 }
 
 function contentBlocks(ctx: Context, entry: LensEntry, content: Json | undefined): Child[] {
@@ -88,9 +91,19 @@ function toolCall(ctx: Context, entry: LensEntry, call: Obj): HTMLElement {
 			h("span", { class: "muted mono" }, id),
 			result === undefined
 				? pill("no result", "warn")
-				: h("a", { class: `chip ${isError ? "tone-bad" : ""}`, href: ctx.link({ entry: result.id }) }, `→ result #${result.id}${result.durationMs === undefined ? "" : ` · ${duration(result.durationMs)}`}`),
+				: h(
+						"a",
+						{ class: `chip ${isError ? "tone-bad" : ""}`, href: ctx.link({ entry: result.id }) },
+						`→ result #${result.id}${result.durationMs === undefined ? "" : ` · ${duration(result.durationMs)}`}`,
+					),
 			task === undefined ? null : h("a", { class: "chip", href: ctx.link({ view: "tasks", task: task.id }) }, `task #${task.id}`),
-			owned.map((conversation) => h("a", { class: "chip tone-accent", href: ctx.link({ view: "timeline", conversation: conversation.id, compare: false }) }, `↳ subagent #${conversation.id}`)),
+			owned.map((conversation) =>
+				h(
+					"a",
+					{ class: "chip tone-accent", href: ctx.link({ view: "timeline", conversation: conversation.id, compare: false }) },
+					`↳ subagent #${conversation.id}`,
+				),
+			),
 		),
 		h("div", { class: "tool-args" }, jsonTree(call.arguments, 1)),
 	);
@@ -106,7 +119,16 @@ function header(ctx: Context, entry: LensEntry): HTMLElement {
 		h("span", { class: "card-kind" }, label, toolName === undefined ? null : h("span", { class: "tool-name" }, ` ${String(toolName)}`)),
 		entry.model === undefined ? null : h("span", { class: "muted" }, entry.model),
 		entry.durationMs === undefined ? null : h("span", { class: "metric" }, duration(entry.durationMs)),
-		entry.usage === undefined ? null : h("span", { class: "metric", title: `in ${entry.usage.input} · out ${entry.usage.output} · cache read ${entry.usage.cacheRead} · cache write ${entry.usage.cacheWrite}` }, `${tokens(entry.usage.totalTokens)} tok`),
+		entry.usage === undefined
+			? null
+			: h(
+					"span",
+					{
+						class: "metric",
+						title: `in ${entry.usage.input} · out ${entry.usage.output} · cache read ${entry.usage.cacheRead} · cache write ${entry.usage.cacheWrite}`,
+					},
+					`${tokens(entry.usage.totalTokens)} tok`,
+				),
 		entry.usage === undefined ? null : h("span", { class: "metric cost" }, cost(entry.usage.cost)),
 		entry.stopReason === undefined || entry.stopReason === "stop" || entry.stopReason === "toolUse" ? null : pill(entry.stopReason, "warn"),
 		h("span", { class: "spacer" }),
@@ -136,7 +158,14 @@ function body(ctx: Context, entry: LensEntry): Child[] {
 					{ class: "system" },
 					h("summary", null, summary.length === 0 ? "no prompt change" : summary.join(" · ")),
 					text === "" ? null : h("pre", { class: "pre" }, text),
-					sections.map(([name, value]) => h("div", { class: "section" }, h("div", { class: "muted small mono" }, value === null ? `${name} (removed)` : name), value === null ? null : h("pre", { class: "pre" }, String(value)))),
+					sections.map(([name, value]) =>
+						h(
+							"div",
+							{ class: "section" },
+							h("div", { class: "muted small mono" }, value === null ? `${name} (removed)` : name),
+							value === null ? null : h("pre", { class: "pre" }, String(value)),
+						),
+					),
 					h("div", { class: "raw" }, jsonTree(message, 0)),
 				),
 			);
@@ -165,8 +194,15 @@ export function card(ctx: Context, entry: LensEntry, previousAt: number | undefi
 		h(
 			"div",
 			{ class: "gutter" },
-			h("div", { class: "time", title: entry.atEstimated ? "estimated from its task or the entry before" : undefined }, clock(entry.at), entry.atEstimated ? "≈" : ""),
-			previousAt === undefined || entry.at === undefined ? null : h("div", { class: "delta" }, `+${duration(entry.at - previousAt)}`),
+			h(
+				"div",
+				{ class: "time", title: entry.atEstimated ? "estimated from its task or the entry before" : undefined },
+				clock(entry.at),
+				entry.atEstimated ? "≈" : "",
+			),
+			previousAt === undefined || entry.at === undefined
+				? null
+				: h("div", { class: "delta" }, entry.at >= previousAt ? `+${duration(entry.at - previousAt)}` : duration(entry.at - previousAt)),
 		),
 		h(
 			"div",
@@ -244,7 +280,21 @@ function gantt(ctx: Context, conversation: LensConversation, entries: LensEntry[
 		h("div", { class: "lane" }, h("div", { class: "lane-label" }, "inputs"), marks),
 		rows,
 		h("div", { class: "axis" }, h("span", null, clock(start)), h("span", null, duration(end - start)), h("span", null, clock(end))),
-		later.length === 0 ? null : h("div", { class: "gantt-note muted" }, `${later.length} more task${later.length === 1 ? "" : "s"} started after this, `, h("a", { href: ctx.link({ view: "tasks" }) }, later.map((task) => task.kind).filter((kind, i, all) => all.indexOf(kind) === i).join(", "))),
+		later.length === 0
+			? null
+			: h(
+					"div",
+					{ class: "gantt-note muted" },
+					`${later.length} more task${later.length === 1 ? "" : "s"} started after this, `,
+					h(
+						"a",
+						{ href: ctx.link({ view: "tasks" }) },
+						later
+							.map((task) => task.kind)
+							.filter((kind, i, all) => all.indexOf(kind) === i)
+							.join(", "),
+					),
+				),
 	);
 }
 
@@ -279,7 +329,10 @@ function compare(ctx: Context, conversation: LensConversation): HTMLElement | nu
 	if (parent === undefined) return null;
 	const source = ctx.index.conversations.get(parent.conversationId);
 	if (source === undefined) return null;
-	const original = source.entryIds.filter((id) => id > parent.at).map((id) => ctx.index.entries.get(id)).filter((entry): entry is LensEntry => entry !== undefined);
+	const original = source.entryIds
+		.filter((id) => id > parent.at)
+		.map((id) => ctx.index.entries.get(id))
+		.filter((entry): entry is LensEntry => entry !== undefined);
 	const branch = transcript(ctx, conversation).own;
 	const column = (title: string, model: string | undefined, list: LensEntry[], href: string) => {
 		const spent = list.reduce((sum, entry) => sum + (entry.usage?.cost ?? 0), 0);
@@ -287,7 +340,15 @@ function compare(ctx: Context, conversation: LensConversation): HTMLElement | nu
 		return h(
 			"div",
 			{ class: "compare-col" },
-			h("div", { class: "compare-head" }, h("a", { href }, title), h("span", { class: "muted" }, model ?? ""), h("span", { class: "metric" }, `${list.length} entries`), h("span", { class: "metric" }, `${tokens(used)} tok`), h("span", { class: "metric cost" }, cost(spent))),
+			h(
+				"div",
+				{ class: "compare-head" },
+				h("a", { href }, title),
+				h("span", { class: "muted" }, model ?? ""),
+				h("span", { class: "metric" }, `${list.length} entries`),
+				h("span", { class: "metric" }, `${tokens(used)} tok`),
+				h("span", { class: "metric cost" }, cost(spent)),
+			),
 			list.length === 0 ? h("div", { class: "empty" }, "nothing after the fork point") : entryList(ctx, list),
 		);
 	};
@@ -307,7 +368,11 @@ function compare(ctx: Context, conversation: LensConversation): HTMLElement | nu
 export function timelineView(ctx: Context): HTMLElement {
 	const conversation = ctx.index.conversations.get(ctx.route.conversation);
 	if (conversation === undefined) {
-		return h("div", { class: "empty" }, ctx.lens.conversations.length === 0 ? "This store has no conversations." : `This store has no conversation #${ctx.route.conversation}.`);
+		return h(
+			"div",
+			{ class: "empty" },
+			ctx.lens.conversations.length === 0 ? "This store has no conversations." : `This store has no conversation #${ctx.route.conversation}.`,
+		);
 	}
 	const { inherited, own } = transcript(ctx, conversation);
 	const owner = conversation.owner;
@@ -315,14 +380,33 @@ export function timelineView(ctx: Context): HTMLElement {
 	const head = h(
 		"header",
 		{ class: "view-head" },
-		h("div", { class: "view-title" }, h("span", { class: `role-badge role-${conversation.role}` }, conversation.role), h("h2", null, conversation.title ?? conversation.label)),
+		h(
+			"div",
+			{ class: "view-title" },
+			h("span", { class: `role-badge role-${conversation.role}` }, conversation.role),
+			h("h2", null, conversation.title ?? conversation.label),
+		),
 		h(
 			"div",
 			{ class: "view-sub" },
 			h("span", { class: "muted" }, `conversation #${conversation.id} · ${conversation.label}`),
-			parent === undefined ? null : h("a", { class: "chip", href: ctx.link({ conversation: parent.conversationId, entry: parent.at, compare: false }) }, `parent #${parent.conversationId} at entry ${parent.at}`),
-			parent === undefined ? null : h("a", { class: `chip ${ctx.route.compare ? "tone-accent" : ""}`, href: ctx.link({ compare: !ctx.route.compare }) }, ctx.route.compare ? "hide comparison" : "compare branches"),
-			owner === undefined ? null : h("a", { class: "chip", href: ctx.link({ conversation: owner.conversationId, compare: false }) }, `owner: conversation #${owner.conversationId}`),
+			parent === undefined
+				? null
+				: h(
+						"a",
+						{ class: "chip", href: ctx.link({ conversation: parent.conversationId, entry: parent.at, compare: false }) },
+						`parent #${parent.conversationId} at entry ${parent.at}`,
+					),
+			parent === undefined
+				? null
+				: h(
+						"a",
+						{ class: `chip ${ctx.route.compare ? "tone-accent" : ""}`, href: ctx.link({ compare: !ctx.route.compare }) },
+						ctx.route.compare ? "hide comparison" : "compare branches",
+					),
+			owner === undefined
+				? null
+				: h("a", { class: "chip", href: ctx.link({ conversation: owner.conversationId, compare: false }) }, `owner: conversation #${owner.conversationId}`),
 			owner === undefined ? null : h("a", { class: "chip", href: ctx.link({ view: "tasks", task: owner.taskId }) }, `owner task #${owner.taskId}`),
 		),
 		stats(conversation, own),

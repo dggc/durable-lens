@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/dggc/durable-lens.git"
   },
-  "homepage": "https://github.com/dggc/durable-lens#readme",
+  "homepage": "https://dggc.github.io/durable-lens/",
   "bugs": {
     "url": "https://github.com/dggc/durable-lens/issues"
   },
@@ -25,7 +25,8 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22.13"
@@ -41,14 +42,20 @@
   ],
   "scripts": {
     "build": "node scripts/clean.mjs && tsc -p tsconfig.build.json && tsc -p src/web/tsconfig.json && node scripts/copy-web.mjs",
-    "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
+    "lint": "biome ci .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/web/tsconfig.json",
     "test": "npm run build && node --test --test-reporter=spec test/*.test.ts",
+    "coverage": "npm run build && node scripts/coverage.mjs",
+    "check:ui": "npm run build && node scripts/check-ui.mjs",
+    "check:package": "npm run build && node scripts/check-package.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run coverage && npm run check:package",
     "fixtures": "node fixtures/generate/build.mjs",
     "start": "node dist/cli.js",
-    "check:ui": "node scripts/check-ui.mjs",
     "prepublishOnly": "npm test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@types/node": "22.19.19",
     "playwright-core": "1.63.0",
     "typescript": "7.0.2"

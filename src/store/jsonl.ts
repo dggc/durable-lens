@@ -7,7 +7,7 @@
 // marker confirms is missing (the owner reclaimed it after the main file was read). Which records may legitimately be
 // missing follows pi-durable's `JsonlStorage.recover()`.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type { DecodeSite, FileInfo, Json, JsonObject, RawDocument, RawRevision, RawStore, ReadOptions } from "./types.ts";

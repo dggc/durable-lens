@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
-import { applyOps, OpError, type Json } from "../src/store/ops.ts";
+import { applyOps, type Json, OpError } from "../src/store/ops.ts";
 import { GENERATE, generatorInstalled } from "./support.ts";
 
 type Tracker = {
@@ -83,7 +83,14 @@ describe("Chord ops", () => {
 
 	it("applies each op kind", () => {
 		let value: Json = { a: [1, 2, 3], s: "hello" };
-		value = applyOps(value, [["s", ["b"], { c: true }], ["a", ["s"], " world"], ["t", ["s"], 1], ["p", ["a"], 1, 1, ["x", "y"]], ["m", ["a"], [3, 2, 1, 0]], ["d", ["b", "c"]]]);
+		value = applyOps(value, [
+			["s", ["b"], { c: true }],
+			["a", ["s"], " world"],
+			["t", ["s"], 1],
+			["p", ["a"], 1, 1, ["x", "y"]],
+			["m", ["a"], [3, 2, 1, 0]],
+			["d", ["b", "c"]],
+		]);
 		assert.deepEqual(value, { a: [3, "y", "x", 1], s: "ello world", b: {} });
 		assert.deepEqual(applyOps(value, [["r", { replaced: 1 }]]), { replaced: 1 });
 		assert.deepEqual(applyOps([1, 2], [["p", [], 0, 0, [0]]]), [0, 1, 2]);

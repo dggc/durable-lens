@@ -94,9 +94,20 @@ try {
 const list = frames.map(({ file, seconds }) => `file '${file}'\nduration ${seconds}`).join("\n");
 writeFileSync(join(scratch, "frames.txt"), `${list}\nfile '${frames.at(-1).file}'\n`);
 execFileSync("ffmpeg", [
-	"-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", join(scratch, "frames.txt"),
-	"-vf", "fps=12,scale=1100:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
-	"-loop", "0", join(media, "demo.gif"),
+	"-y",
+	"-loglevel",
+	"error",
+	"-f",
+	"concat",
+	"-safe",
+	"0",
+	"-i",
+	join(scratch, "frames.txt"),
+	"-vf",
+	"fps=12,scale=1100:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
+	"-loop",
+	"0",
+	join(media, "demo.gif"),
 ]);
 rmSync(scratch, { recursive: true, force: true });
 console.log(`${frames.length} frames → docs/media/demo.gif`);

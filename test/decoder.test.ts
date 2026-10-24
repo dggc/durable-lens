@@ -37,7 +37,10 @@ describe("decoder hook", () => {
 		try {
 			encrypt(sealed.store);
 			const blind = await openLens(sealed.store);
-			assert.ok(blind.warnings.some((warning) => warning.includes("--decoder")), blind.warnings.join("\n"));
+			assert.ok(
+				blind.warnings.some((warning) => warning.includes("--decoder")),
+				blind.warnings.join("\n"),
+			);
 			assert.equal(blind.entries.length, 0);
 
 			process.env.DURABLE_LENS_KEY = key.toString("base64");
@@ -65,6 +68,13 @@ describe("decoder hook", () => {
 				return value;
 			},
 		});
-		assert.deepEqual([...sites].sort(), ["jsonl:conversation.value", "jsonl:document.content", "jsonl:document.record", "jsonl:entry.value", "jsonl:submission.value", "jsonl:task.value"]);
+		assert.deepEqual([...sites].sort(), [
+			"jsonl:conversation.value",
+			"jsonl:document.content",
+			"jsonl:document.record",
+			"jsonl:entry.value",
+			"jsonl:submission.value",
+			"jsonl:task.value",
+		]);
 	});
 });

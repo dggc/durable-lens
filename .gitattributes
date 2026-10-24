@@ -1,0 +1,21 @@
+* text=auto eol=lf
+
+# Binary files: never normalize, never diff as text.
+*.png binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.sqlite binary
+*.sqlite-wal binary
+*.sqlite-shm binary
+*.db binary
+*.tgz binary
+*.mp4 binary
+*.webm binary
+
+# Fixture stores are committed byte for byte; the tests hash them.
+fixtures/stores/** -text

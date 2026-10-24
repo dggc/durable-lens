@@ -12,8 +12,8 @@
 
 import { closeSync, constants, copyFileSync, openSync, readSync, rmSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
+import { setTimeout as delay } from "node:timers/promises";
 import { makeScratch } from "./scratch.ts";
 import type { DecodeSite, FileInfo, Json, JsonObject, RawDocument, RawStore, ReadOptions } from "./types.ts";
 
@@ -106,20 +106,20 @@ export async function readSqlite(source: string, options: ReadOptions = {}): Pro
 	const snapshot = await snapshotSqlite(source);
 	let db: DatabaseSync | undefined;
 	try {
-		db = new DatabaseSync(snapshot.path);
+		const opened = new DatabaseSync(snapshot.path);
+		db = opened;
 		const warnings: string[] = [];
-		const prefix = options.prefix ?? detectPrefix(db, warnings);
-		const table = (name: string) => `"${prefix}${name}"`;
-		const all = (sql: string): Row[] => db!.prepare(sql).all() as Row[];
+		const prefix = options.prefix ?? detectPrefix(opened, warnings);
+		// The prefix is untrusted (--prefix, or a table name in the database being read): quote it as an SQL identifier.
+		const table = (name: string) => `"${`${prefix}${name}`.replaceAll('"', '""')}"`;
+		const all = (sql: string): Row[] => opened.prepare(sql).all() as Row[];
 		const decode = async (text: unknown, site: Omit<DecodeSite, "store">): Promise<Json> => {
 			const value = JSON.parse(String(text)) as Json;
 			return options.decode === undefined ? value : options.decode(value, { store: "sqlite", ...site });
 		};
 		const records = async (name: string, extra = ""): Promise<{ row: Row; record: JsonObject }[]> => {
 			const rows = all(`SELECT * FROM ${table(name)} ${extra}`);
-			return Promise.all(
-				rows.map(async (row) => ({ row, record: (await decode(row.record, { table: name, column: "record" })) as JsonObject })),
-			);
+			return Promise.all(rows.map(async (row) => ({ row, record: (await decode(row.record, { table: name, column: "record" })) as JsonObject })));
 		};
 
 		const schema = all(`SELECT version FROM ${table("durable_schema")}`)[0];

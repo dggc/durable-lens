@@ -40,14 +40,27 @@ export function statusText(task: LensTask): string {
 function note(ctx: Context, task: LensTask): Child[] {
 	const notes: Child[] = [];
 	if (task.parked) notes.push(h("span", { class: "tone-bad" }, `crashed ${task.restarts} times in a row; parked until Harness.retryTask(${task.id})`));
-	else if (task.restarts !== undefined && task.restarts > 0) notes.push(h("span", { class: "tone-warn" }, `${task.restarts} restart${task.restarts === 1 ? "" : "s"} after crashes (parks at ${ctx.lens.restartLimit})`));
+	else if (task.restarts !== undefined && task.restarts > 0)
+		notes.push(
+			h("span", { class: "tone-warn" }, `${task.restarts} restart${task.restarts === 1 ? "" : "s"} after crashes (parks at ${ctx.lens.restartLimit})`),
+		);
 	if (task.status === "waiting" && task.on !== undefined) {
-		notes.push(h("span", null, "waiting on ", task.on.map((id, i) => [i > 0 ? ", " : "", h("a", { href: ctx.link({ task: id }) }, `#${id}`)]), ` (${task.policy ?? "?"})`));
+		notes.push(
+			h(
+				"span",
+				null,
+				"waiting on ",
+				task.on.map((id, i) => [i > 0 ? ", " : "", h("a", { href: ctx.link({ task: id }) }, `#${id}`)]),
+				` (${task.policy ?? "?"})`,
+			),
+		);
 	}
 	if (task.status === "sleeping" && task.until !== undefined) notes.push(h("span", null, `sleeps until ${dateTime(task.until)} (${relative(task.until)})`));
-	if (task.status === "running" && task.endedAt === undefined) notes.push(h("span", { class: "muted" }, "running when the store was last written: a live owner, or a crash its next open recovers"));
+	if (task.status === "running" && task.endedAt === undefined)
+		notes.push(h("span", { class: "muted" }, "running when the store was last written: a live owner, or a crash its next open recovers"));
 	const error = task.outcome?.error;
-	if (error !== undefined && error !== null && typeof error === "object" && !Array.isArray(error) && typeof error.message === "string") notes.push(h("span", { class: "tone-bad" }, error.message));
+	if (error !== undefined && error !== null && typeof error === "object" && !Array.isArray(error) && typeof error.message === "string")
+		notes.push(h("span", { class: "tone-bad" }, error.message));
 	if (task.outcome?.reason !== undefined) notes.push(h("span", { class: "muted" }, task.outcome.reason));
 	if (task.abortRequested) notes.push(pill(task.abortReason === "restart" ? "abandoned on restart" : "abort requested", "warn"));
 	if (task.background) notes.push(pill("background", "muted"));
@@ -91,21 +104,49 @@ function tree(ctx: Context, tasks: LensTask[], visible: (task: LensTask) => bool
 function details(ctx: Context, task: LensTask): HTMLElement {
 	const conversation = ctx.index.conversations.get(task.conversationId);
 	const owned = ctx.index.ownedBy.get(task.id) ?? [];
-	const field = (label: string, value: Child) => h("div", { class: "field" }, h("div", { class: "field-label" }, label), h("div", { class: "field-value" }, value));
+	const field = (label: string, value: Child) =>
+		h("div", { class: "field" }, h("div", { class: "field-label" }, label), h("div", { class: "field-value" }, value));
 	return h(
 		"aside",
 		{ class: "details" },
-		h("div", { class: "details-head" }, pill(statusText(task), taskTone(task)), h("h3", null, task.kind, task.label === undefined ? "" : ` ${task.label}`), h("span", { class: "muted mono" }, `#${task.id}`)),
+		h(
+			"div",
+			{ class: "details-head" },
+			pill(statusText(task), taskTone(task)),
+			h("h3", null, task.kind, task.label === undefined ? "" : ` ${task.label}`),
+			h("span", { class: "muted mono" }, `#${task.id}`),
+		),
 		h("div", { class: "task-note block" }, note(ctx, task)),
-		field("conversation", h("a", { href: ctx.link({ view: "timeline", conversation: task.conversationId, entry: task.entryId ?? task.callEntryId }) }, `#${task.conversationId} ${conversation?.label ?? ""}`)),
+		field(
+			"conversation",
+			h(
+				"a",
+				{ href: ctx.link({ view: "timeline", conversation: task.conversationId, entry: task.entryId ?? task.callEntryId }) },
+				`#${task.conversationId} ${conversation?.label ?? ""}`,
+			),
+		),
 		task.owner === undefined ? field("owner", "its conversation") : field("owner", h("a", { href: ctx.link({ task: task.owner }) }, `task #${task.owner}`)),
-		task.children.length === 0 ? null : field("owns", task.children.map((id, i) => [i > 0 ? " " : "", h("a", { class: "chip", href: ctx.link({ task: id }) }, `#${id}`)])),
-		owned.length === 0 ? null : field("conversations", owned.map((c) => h("a", { class: "chip tone-accent", href: ctx.link({ view: "timeline", conversation: c.id }) }, `↳ #${c.id}`))),
+		task.children.length === 0
+			? null
+			: field(
+					"owns",
+					task.children.map((id, i) => [i > 0 ? " " : "", h("a", { class: "chip", href: ctx.link({ task: id }) }, `#${id}`)]),
+				),
+		owned.length === 0
+			? null
+			: field(
+					"conversations",
+					owned.map((c) => h("a", { class: "chip tone-accent", href: ctx.link({ view: "timeline", conversation: c.id }) }, `↳ #${c.id}`)),
+				),
 		field("started", task.startedAt === undefined ? "—" : `${dateTime(task.startedAt)} (${relative(task.startedAt)})`),
 		field("ended", task.endedAt === undefined ? "—" : `${dateTime(task.endedAt)} · took ${duration(task.endedAt - (task.startedAt ?? task.endedAt))}`),
 		task.version === undefined ? null : field("definition version", String(task.version)),
-		task.restarts === undefined ? null : field("restarts", `${task.restarts} (restart limit ${ctx.lens.restartLimit}; set --restart-limit to your settings.restartLimit)`),
-		task.entryId === undefined ? null : field("produced", h("a", { href: ctx.link({ view: "timeline", conversation: task.conversationId, entry: task.entryId }) }, `entry #${task.entryId}`)),
+		task.restarts === undefined
+			? null
+			: field("restarts", `${task.restarts} (restart limit ${ctx.lens.restartLimit}; set --restart-limit to your settings.restartLimit)`),
+		task.entryId === undefined
+			? null
+			: field("produced", h("a", { href: ctx.link({ view: "timeline", conversation: task.conversationId, entry: task.entryId }) }, `entry #${task.entryId}`)),
 		h("div", { class: "json-block" }, h("div", { class: "field-label" }, "input"), jsonTree(task.input, 2)),
 		task.checkpoint === undefined ? null : h("div", { class: "json-block" }, h("div", { class: "field-label" }, "checkpoint"), jsonTree(task.checkpoint, 2)),
 		task.outcome === undefined ? null : h("div", { class: "json-block" }, h("div", { class: "field-label" }, "outcome"), jsonTree(task.outcome as never, 3)),
@@ -122,7 +163,14 @@ export function tasksView(ctx: Context): HTMLElement {
 	for (const task of tasks) counts.set(statusText(task), (counts.get(statusText(task)) ?? 0) + 1);
 	const selected = ctx.route.task === undefined ? undefined : ctx.index.tasks.get(ctx.route.task);
 	const groups = ctx.lens.conversations
-		.map((conversation) => ({ conversation, rows: tree(ctx, tasks.filter((task) => task.conversationId === conversation.id), visible) }))
+		.map((conversation) => ({
+			conversation,
+			rows: tree(
+				ctx,
+				tasks.filter((task) => task.conversationId === conversation.id),
+				visible,
+			),
+		}))
 		.filter((group) => group.rows.length > 0);
 	return h(
 		"div",
@@ -141,7 +189,11 @@ export function tasksView(ctx: Context): HTMLElement {
 						const sample = tasks.find((task) => statusText(task) === status) as LensTask;
 						return pill(`${count} ${status}`, taskTone(sample));
 					}),
-					h("a", { class: `chip ${builtins ? "tone-accent" : ""}`, href: ctx.link({ builtins: !builtins }) }, builtins ? "hide finished pi.generation / pi.tool" : "show finished pi.generation / pi.tool"),
+					h(
+						"a",
+						{ class: `chip ${builtins ? "tone-accent" : ""}`, href: ctx.link({ builtins: !builtins }) },
+						builtins ? "hide finished pi.generation / pi.tool" : "show finished pi.generation / pi.tool",
+					),
 				),
 			),
 			groups.length === 0

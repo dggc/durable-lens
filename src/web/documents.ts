@@ -36,7 +36,13 @@ function details(ctx: Context, document: LensDocument): HTMLElement {
 	return h(
 		"aside",
 		{ class: "details" },
-		h("div", { class: "details-head" }, h("h3", null, document.kind), document.key === undefined ? null : h("span", { class: "mono" }, `[${document.key}]`), h("span", { class: "muted mono" }, `#${document.id}`)),
+		h(
+			"div",
+			{ class: "details-head" },
+			h("h3", null, document.kind),
+			document.key === undefined ? null : h("span", { class: "mono" }, `[${document.key}]`),
+			h("span", { class: "muted mono" }, `#${document.id}`),
+		),
 		h(
 			"div",
 			{ class: "fields-inline" },
@@ -49,7 +55,13 @@ function details(ctx: Context, document: LensDocument): HTMLElement {
 		document.error === undefined ? null : h("div", { class: "error-line" }, document.error),
 		slider,
 		value,
-		document.scope.conversationId === undefined ? null : h("a", { class: "chip", href: ctx.link({ view: "timeline", conversation: document.scope.conversationId }) }, `open conversation #${document.scope.conversationId}`),
+		document.scope.conversationId === undefined
+			? null
+			: h(
+					"a",
+					{ class: "chip", href: ctx.link({ view: "timeline", conversation: document.scope.conversationId }) },
+					`open conversation #${document.scope.conversationId}`,
+				),
 	);
 }
 
@@ -64,7 +76,12 @@ export function documentsView(ctx: Context): HTMLElement {
 		h(
 			"div",
 			{ class: "split-main" },
-			h("header", { class: "view-head" }, h("div", { class: "view-title" }, h("h2", null, "Documents")), h("div", { class: "view-sub muted" }, `${documents.length} document incarnations; pi.* ones are the Harness's own`)),
+			h(
+				"header",
+				{ class: "view-head" },
+				h("div", { class: "view-title" }, h("h2", null, "Documents")),
+				h("div", { class: "view-sub muted" }, `${documents.length} document incarnations; pi.* ones are the Harness's own`),
+			),
 			[...groups].map(([scope, list]) =>
 				h(
 					"section",
@@ -75,7 +92,10 @@ export function documentsView(ctx: Context): HTMLElement {
 						.map((document) =>
 							h(
 								"a",
-								{ class: `task-row ${selected?.id === document.id ? "selected" : ""} ${document.retiredAt === undefined ? "" : "retired"}`, href: ctx.link({ view: "documents", document: document.id }) },
+								{
+									class: `task-row ${selected?.id === document.id ? "selected" : ""} ${document.retiredAt === undefined ? "" : "retired"}`,
+									href: ctx.link({ view: "documents", document: document.id }),
+								},
 								h("span", { class: `task-kind ${document.kind.startsWith("pi.") ? "muted" : ""}` }, document.kind),
 								document.key === undefined ? null : h("span", { class: "mono" }, `[${document.key}]`),
 								h("span", { class: "muted mono" }, `#${document.id}`),
@@ -89,6 +109,8 @@ export function documentsView(ctx: Context): HTMLElement {
 				),
 			),
 		),
-		selected === undefined ? h("aside", { class: "details empty" }, "Select a document to see its value; rewindable ones can be stepped back through their stored revisions.") : details(ctx, selected),
+		selected === undefined
+			? h("aside", { class: "details empty" }, "Select a document to see its value; rewindable ones can be stepped back through their stored revisions.")
+			: details(ctx, selected),
 	);
 }

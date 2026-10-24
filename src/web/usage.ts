@@ -14,7 +14,15 @@ function table(title: string, rows: [string, LensUsage, string?][], note?: strin
 			: h(
 					"table",
 					null,
-					h("thead", null, h("tr", null, ["", "cost", "input", "output", "cache read", "cache write", "total"].map((label) => h("th", null, label)))),
+					h(
+						"thead",
+						null,
+						h(
+							"tr",
+							null,
+							["", "cost", "input", "output", "cache read", "cache write", "total"].map((label) => h("th", null, label)),
+						),
+					),
 					h(
 						"tbody",
 						null,
@@ -36,18 +44,39 @@ function table(title: string, rows: [string, LensUsage, string?][], note?: strin
 
 export function usageView(ctx: Context): HTMLElement {
 	const { total, byModel, byTool } = ctx.lens.usage;
-	const card = (label: string, value: string) => h("div", { class: "stat-card" }, h("div", { class: "stat-value" }, value), h("div", { class: "stat-label" }, label));
+	const card = (label: string, value: string) =>
+		h("div", { class: "stat-card" }, h("div", { class: "stat-value" }, value), h("div", { class: "stat-label" }, label));
 	const sorted = (record: Record<string, LensUsage>) => Object.entries(record).sort(([, a], [, b]) => b.cost - a.cost) as [string, LensUsage][];
 	return h(
 		"div",
 		{ class: "view" },
-		h("header", { class: "view-head" }, h("div", { class: "view-title" }, h("h2", null, "Usage and cost")), h("div", { class: "view-sub muted" }, "From each conversation's pi.usage document, which also counts failed and aborted attempts.")),
-		h("div", { class: "stat-cards" }, card("spent", cost(total.cost)), card("input tokens", tokens(total.input)), card("output tokens", tokens(total.output)), card("cache read", tokens(total.cacheRead)), card("cache write", tokens(total.cacheWrite))),
+		h(
+			"header",
+			{ class: "view-head" },
+			h("div", { class: "view-title" }, h("h2", null, "Usage and cost")),
+			h("div", { class: "view-sub muted" }, "From each conversation's pi.usage document, which also counts failed and aborted attempts."),
+		),
+		h(
+			"div",
+			{ class: "stat-cards" },
+			card("spent", cost(total.cost)),
+			card("input tokens", tokens(total.input)),
+			card("output tokens", tokens(total.output)),
+			card("cache read", tokens(total.cacheRead)),
+			card("cache write", tokens(total.cacheWrite)),
+		),
 		table("By model", sorted(byModel)),
 		table("By tool", sorted(byTool), "Only tools that report their own spend, such as ones that call a model."),
 		table(
 			"By conversation",
-			ctx.lens.conversations.map((conversation) => [`#${conversation.id} ${conversation.label}`, conversation.usage, ctx.link({ view: "timeline", conversation: conversation.id })] as [string, LensUsage, string]),
+			ctx.lens.conversations.map(
+				(conversation) =>
+					[`#${conversation.id} ${conversation.label}`, conversation.usage, ctx.link({ view: "timeline", conversation: conversation.id })] as [
+						string,
+						LensUsage,
+						string,
+					],
+			),
 		),
 	);
 }

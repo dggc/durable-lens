@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { openLens } from "../src/open.ts";
 import type { Lens } from "../src/web/lens.ts";
-import { fixture, VARIANTS, VERSIONS, type Variant, type Version } from "./support.ts";
+import { fixture, VARIANTS, type Variant, VERSIONS, type Version } from "./support.ts";
 
 const durableSleep = (version: Version) => version === "1.4.0" || version === "main";
 
@@ -67,13 +67,22 @@ for (const version of VERSIONS) {
 
 				const tools = lens.tasks.filter((task) => task.kind === "pi.tool");
 				assert.ok(tools.length >= 7);
-				assert.ok(tools.every((task) => task.label !== undefined), "every tool task is labelled with its tool");
+				assert.ok(
+					tools.every((task) => task.label !== undefined),
+					"every tool task is labelled with its tool",
+				);
 				assert.ok(lens.tasks.filter((task) => task.kind === "pi.generation").every((task) => task.label?.startsWith("faux/")));
 
 				const crashed = variant.endsWith("crashed");
 				const expected = durableSleep(version)
 					? { "app.release": "waiting", "app.recheck": "sleeping", "app.mirror-sync": "parked", "app.cleanup": "failed", "app.publish": "sleeping" }
-					: { "app.release": "waiting", "app.recheck": crashed ? "running" : "pending", "app.mirror-sync": crashed ? "running" : "pending", "app.cleanup": "failed", "app.publish": crashed ? "running" : "pending" };
+					: {
+							"app.release": "waiting",
+							"app.recheck": crashed ? "running" : "pending",
+							"app.mirror-sync": crashed ? "running" : "pending",
+							"app.cleanup": "failed",
+							"app.publish": crashed ? "running" : "pending",
+						};
 				assert.deepEqual(appTasks(lens), expected);
 
 				const notes = lens.documents.find((document) => document.kind === "app.notes" && document.scope.conversationId === 1);
@@ -83,7 +92,11 @@ for (const version of VERSIONS) {
 				assert.equal(notes?.states?.length, 4);
 				assert.deepEqual(notes?.states?.[0]?.value, { items: ["#412 is a divide-by-zero in measure()"] });
 				const forkNotes = lens.documents.find((document) => document.kind === "app.notes" && document.scope.conversationId === fork?.id);
-				assert.deepEqual(forkNotes?.value, { items: ["#412 is a divide-by-zero in measure()", "Fork: focus on #412 only"] }, "fork: asOf starts from the notes at the fork entry");
+				assert.deepEqual(
+					forkNotes?.value,
+					{ items: ["#412 is a divide-by-zero in measure()", "Fork: focus on #412 only"] },
+					"fork: asOf starts from the notes at the fork entry",
+				);
 
 				assert.deepEqual(Object.keys(lens.usage.byModel).sort(), ["faux/faux-large", "faux/faux-small"]);
 				assert.ok(lens.usage.total.cost > 0);
@@ -106,7 +119,10 @@ for (const version of VERSIONS) {
 
 		it("reads a crashed SQLite store's WAL", async () => {
 			const crashed = await read("sqlite-crashed");
-			assert.ok(crashed.source.files.some((file) => file.name.endsWith("-wal") && file.size > 0), "the fixture still has its WAL");
+			assert.ok(
+				crashed.source.files.some((file) => file.name.endsWith("-wal") && file.size > 0),
+				"the fixture still has its WAL",
+			);
 			assert.deepEqual(
 				crashed.entries.map((entry) => entry.id),
 				(await read("sqlite")).entries.map((entry) => entry.id),

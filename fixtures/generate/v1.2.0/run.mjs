@@ -12,9 +12,7 @@ import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite
 import { Type } from "typebox";
 import { churn, crashChild, generate, hold, settle } from "../scenario.mjs";
 
-const installed = JSON.parse(
-	readFileSync(new URL("./node_modules/@earendil-works/pi-durable/package.json", import.meta.url), "utf8"),
-).version;
+const installed = JSON.parse(readFileSync(new URL("./node_modules/@earendil-works/pi-durable/package.json", import.meta.url), "utf8")).version;
 const [major, minor] = installed.split(".").map(Number);
 const mods = {
 	version: installed,

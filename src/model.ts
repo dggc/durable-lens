@@ -98,8 +98,7 @@ function taskOf(record: JsonObject, restartLimit: number): LensTask {
 		abortRequested: record.abortRequested === true,
 		// A record is parked while it can run but crashed `restartLimit` times in a row; terminal ones are past it.
 		// As pi-durable's scheduler decides it: an abort-marked task still runs its abort handler, so it is not parked.
-		parked:
-			restarts !== undefined && restarts >= restartLimit && record.abortRequested !== true && (status === "pending" || status === "running"),
+		parked: restarts !== undefined && restarts >= restartLimit && record.abortRequested !== true && (status === "pending" || status === "running"),
 	};
 	if (num(record.version) !== undefined) task.version = Number(record.version);
 	if (num(record.owner) !== undefined) task.owner = Number(record.owner);
@@ -160,7 +159,8 @@ function documentOf(raw: RawDocument): LensDocument {
 	try {
 		for (const [index, revision] of raw.revisions.entries()) {
 			if (revision.kind === "base") value = structuredClone(revision.content);
-			else if (value === undefined) continue; // deltas before the first base the store kept
+			else if (value === undefined)
+				continue; // deltas before the first base the store kept
 			else value = applyOps(value, revision.content);
 			document.version = revision.version;
 			if (rewindable && index >= keepFrom) states.push({ seq: revision.seq, value: structuredClone(value) });
@@ -313,47 +313,56 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 		docsByConversation.set(document.scope.conversationId, list);
 	}
 
-	const conversations: LensConversation[] = raw.conversations.filter((record) => num(record.id) !== undefined).map((record) => {
-		const id = Number(record.id);
-		const parent = isObject(record.parent) ? { conversationId: Number(record.parent.conversationId), at: Number(record.parent.at) } : undefined;
-		const owner = isObject(record.owner) ? { conversationId: Number(record.owner.conversationId), taskId: Number(record.owner.taskId) } : undefined;
-		const own = entries.filter((entry) => entry.conversationId === id);
-		const docs = docsByConversation.get(id) ?? [];
-		const usageDoc = docs.find((document) => document.kind === "pi.usage" && document.retiredAt === undefined);
-		const usage = emptyUsage();
-		if (isObject(usageDoc?.value)) {
-			for (const bucket of ["models", "tools"]) {
-				const values = usageDoc.value[bucket];
-				if (isObject(values)) for (const value of Object.values(values)) addUsage(usage, toUsage(value));
+	const conversations: LensConversation[] = raw.conversations
+		.filter((record) => num(record.id) !== undefined)
+		.map((record) => {
+			const id = Number(record.id);
+			const parent = isObject(record.parent) ? { conversationId: Number(record.parent.conversationId), at: Number(record.parent.at) } : undefined;
+			const owner = isObject(record.owner) ? { conversationId: Number(record.owner.conversationId), taskId: Number(record.owner.taskId) } : undefined;
+			const own = entries.filter((entry) => entry.conversationId === id);
+			const docs = docsByConversation.get(id) ?? [];
+			const usageDoc = docs.find((document) => document.kind === "pi.usage" && document.retiredAt === undefined);
+			const usage = emptyUsage();
+			if (isObject(usageDoc?.value)) {
+				for (const bucket of ["models", "tools"]) {
+					const values = usageDoc.value[bucket];
+					if (isObject(values)) for (const value of Object.values(values)) addUsage(usage, toUsage(value));
+				}
+			} else {
+				for (const entry of own) addUsage(usage, entry.usage);
 			}
-		} else {
-			for (const entry of own) addUsage(usage, entry.usage);
-		}
-		const role: LensConversation["role"] = owner !== undefined ? "subagent" : parent !== undefined ? "fork" : id === 1 ? "root" : "conversation";
-		const conversation: LensConversation = {
-			id,
-			role,
-			label: role === "root" ? "Root" : role === "fork" ? `Fork of #${parent?.conversationId} at entry ${parent?.at}` : role === "subagent" ? `Subagent of task ${owner?.taskId}` : `Conversation #${id}`,
-			entryIds: own.map((entry) => entry.id),
-			children: [],
-			usage,
-		};
-		if (parent !== undefined) conversation.parent = parent;
-		if (owner !== undefined) conversation.owner = owner;
-		const agent = docs.find((document) => document.kind === "pi.agent" && document.retiredAt === undefined);
-		const model = modelName(agent?.value);
-		if (model !== undefined) conversation.model = model;
-		const title = own.find((entry) => entry.kind === "pi.user");
-		const text = title === undefined ? undefined : firstText(title);
-		if (text !== undefined) conversation.title = text.length > 120 ? `${text.slice(0, 117)}…` : text;
-		const times = own.map((entry) => entry.at).filter((at): at is number => at !== undefined);
-		// A loop, not Math.min(...times): spreading a long transcript overflows the call stack.
-		for (const at of times) {
-			if (conversation.firstAt === undefined || at < conversation.firstAt) conversation.firstAt = at;
-			if (conversation.lastAt === undefined || at > conversation.lastAt) conversation.lastAt = at;
-		}
-		return conversation;
-	});
+			const role: LensConversation["role"] = owner !== undefined ? "subagent" : parent !== undefined ? "fork" : id === 1 ? "root" : "conversation";
+			const conversation: LensConversation = {
+				id,
+				role,
+				label:
+					role === "root"
+						? "Root"
+						: role === "fork"
+							? `Fork of #${parent?.conversationId} at entry ${parent?.at}`
+							: role === "subagent"
+								? `Subagent of task ${owner?.taskId}`
+								: `Conversation #${id}`,
+				entryIds: own.map((entry) => entry.id),
+				children: [],
+				usage,
+			};
+			if (parent !== undefined) conversation.parent = parent;
+			if (owner !== undefined) conversation.owner = owner;
+			const agent = docs.find((document) => document.kind === "pi.agent" && document.retiredAt === undefined);
+			const model = modelName(agent?.value);
+			if (model !== undefined) conversation.model = model;
+			const title = own.find((entry) => entry.kind === "pi.user");
+			const text = title === undefined ? undefined : firstText(title);
+			if (text !== undefined) conversation.title = text.length > 120 ? `${text.slice(0, 117)}…` : text;
+			const times = own.map((entry) => entry.at).filter((at): at is number => at !== undefined);
+			// A loop, not Math.min(...times): spreading a long transcript overflows the call stack.
+			for (const at of times) {
+				if (conversation.firstAt === undefined || at < conversation.firstAt) conversation.firstAt = at;
+				if (conversation.lastAt === undefined || at > conversation.lastAt) conversation.lastAt = at;
+			}
+			return conversation;
+		});
 	const conversationById = new Map(conversations.map((conversation) => [conversation.id, conversation]));
 	for (const conversation of conversations) {
 		const up = conversation.parent?.conversationId ?? conversation.owner?.conversationId;
@@ -366,7 +375,10 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 	const byTool = new Map<string, LensUsage>();
 	for (const document of documents) {
 		if (document.kind !== "pi.usage" || document.retiredAt !== undefined || !isObject(document.value)) continue;
-		for (const [bucket, target] of [["models", byModel], ["tools", byTool]] as const) {
+		for (const [bucket, target] of [
+			["models", byModel],
+			["tools", byTool],
+		] as const) {
 			const values = document.value[bucket];
 			if (!isObject(values)) continue;
 			for (const [key, value] of Object.entries(values)) {

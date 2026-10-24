@@ -4,7 +4,7 @@
 //   {"enc": "<base64 of 12-byte IV | 16-byte GCM tag | ciphertext>"}
 // encrypted with AES-256-GCM, which keeps SQLite's json_valid() checks passing. Adapt the envelope and cipher to yours.
 //
-//   DURABLE_LENS_KEY=<base64 of the 32-byte key> npx durable-lens app.sqlite --decoder ./decoder-aes-gcm.mjs
+//   DURABLE_LENS_KEY=<base64 of the 32-byte key> node dist/cli.js app.sqlite --decoder ./examples/decoder-aes-gcm.mjs
 //
 // durable-lens calls decode(value, site) for each payload, where site is { store, table, column }, and never sees the
 // key: this module reads it from your environment.

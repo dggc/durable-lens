@@ -12,10 +12,24 @@ import { openLens } from "../dist/index.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const stores = join(root, "fixtures", "stores");
-const walk = (dir) => readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? walk(join(dir, name)).map((sub) => join(name, sub)) : [name]));
-const hash = (dir) => Object.fromEntries(walk(dir).sort().map((name) => [name, createHash("sha256").update(readFileSync(join(dir, name))).digest("hex").slice(0, 12)]));
+const walk = (dir) =>
+	readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? walk(join(dir, name)).map((sub) => join(name, sub)) : [name]));
+const hash = (dir) =>
+	Object.fromEntries(
+		walk(dir)
+			.sort()
+			.map((name) => [
+				name,
+				createHash("sha256")
+					.update(readFileSync(join(dir, name)))
+					.digest("hex")
+					.slice(0, 12),
+			]),
+	);
 const changes = (before, after) =>
-	[...new Set([...Object.keys(before), ...Object.keys(after)])].filter((name) => before[name] !== after[name]).map((name) => `${name} ${before[name] ?? "(none)"} → ${after[name] ?? "(gone)"}`);
+	[...new Set([...Object.keys(before), ...Object.keys(after)])]
+		.filter((name) => before[name] !== after[name])
+		.map((name) => `${name} ${before[name] ?? "(none)"} → ${after[name] ?? "(gone)"}`);
 
 async function measure(label, version, variant, read, prepare = () => {}) {
 	const dir = mkdtempSync(join(tmpdir(), "durable-lens-measure-"));
@@ -30,7 +44,9 @@ async function measure(label, version, variant, read, prepare = () => {}) {
 			result = `error: ${error.message.slice(0, 80)}`;
 		}
 		const changed = changes(before, hash(dir));
-		console.log(`${label.padEnd(44)} ${`${version} ${variant}`.padEnd(22)} ${String(result).padEnd(26)} ${changed.length === 0 ? "unchanged" : `CHANGED: ${changed.join("; ")}`}`);
+		console.log(
+			`${label.padEnd(44)} ${`${version} ${variant}`.padEnd(22)} ${String(result).padEnd(26)} ${changed.length === 0 ? "unchanged" : `CHANGED: ${changed.join("; ")}`}`,
+		);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
@@ -51,9 +67,24 @@ const uri = (path, key, value) => {
 };
 
 for (const variant of ["sqlite", "sqlite-crashed"]) {
-	await measure("node:sqlite { readOnly: true }", "1.4.0", variant, sqliteRead((path) => new DatabaseSync(path, { readOnly: true })));
-	await measure("node:sqlite file: URI mode=ro", "1.4.0", variant, sqliteRead((path) => new DatabaseSync(uri(path, "mode", "ro"), { readOnly: true })));
-	await measure("node:sqlite file: URI immutable=1", "1.4.0", variant, sqliteRead((path) => new DatabaseSync(uri(path, "immutable", "1"), { readOnly: true })));
+	await measure(
+		"node:sqlite { readOnly: true }",
+		"1.4.0",
+		variant,
+		sqliteRead((path) => new DatabaseSync(path, { readOnly: true })),
+	);
+	await measure(
+		"node:sqlite file: URI mode=ro",
+		"1.4.0",
+		variant,
+		sqliteRead((path) => new DatabaseSync(uri(path, "mode", "ro"), { readOnly: true })),
+	);
+	await measure(
+		"node:sqlite file: URI immutable=1",
+		"1.4.0",
+		variant,
+		sqliteRead((path) => new DatabaseSync(uri(path, "immutable", "1"), { readOnly: true })),
+	);
 	await measure("durable-lens", "1.4.0", variant, async (dir) => `next_seq ${(await openLens(join(dir, "session.sqlite"))).format.nextSeq}`);
 }
 
@@ -77,7 +108,11 @@ if (existsSync(join(vmain, "pi-durable"))) {
 			db.close();
 		}
 	};
-	for (const [version, variant] of [["1.2.0", "sqlite"], ["1.2.0", "sqlite-crashed"], ["1.4.0", "sqlite-crashed"]]) {
+	for (const [version, variant] of [
+		["1.2.0", "sqlite"],
+		["1.2.0", "sqlite-crashed"],
+		["1.4.0", "sqlite-crashed"],
+	]) {
 		await measure("pi-durable main storage + readOnly Harness", version, variant, async (dir) => {
 			const before = schema(dir);
 			await viewer(await openNodeSqliteStorage(join(dir, "session.sqlite")));

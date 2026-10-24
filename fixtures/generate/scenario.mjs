@@ -48,9 +48,7 @@ A bug report pasted this, which must show as text and never run:
 /** Wrap a pi-ai provider so each response's usage carries its cost, computed the way pi-ai providers do. */
 function pricedProvider(provider, ai) {
 	const price = (message, model) =>
-		message?.usage === undefined
-			? message
-			: { ...message, usage: { ...message.usage, cost: ai.calculateCost(model, { ...message.usage }) } };
+		message?.usage === undefined ? message : { ...message, usage: { ...message.usage, cost: ai.calculateCost(model, { ...message.usage }) } };
 	const wrap = (inner, model) => {
 		const outer = ai.createAssistantMessageEventStream();
 		void (async () => {
@@ -106,10 +104,7 @@ export function buildSetup(mods) {
 		phases: {
 			compile: async (_task, runtime, context) => {
 				await delay(150);
-				await runtime.commit(
-					() => ({ status: "terminal", outcome: { status: "completed", result: { artifact: "widgets-2.4.0.tgz" } } }),
-					context,
-				);
+				await runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: { artifact: "widgets-2.4.0.tgz" } } }), context);
 			},
 		},
 		abort: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
@@ -120,10 +115,8 @@ export function buildSetup(mods) {
 		version: 1,
 		initial: () => ({ phase: "wait" }),
 		phases: {
-			wait: (task, runtime, context) =>
-				hasSleep ? runtime.sleepUntil(task.input.window, { phase: "upload" }, context) : never(context),
-			upload: (_task, runtime, context) =>
-				runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
+			wait: (task, runtime, context) => (hasSleep ? runtime.sleepUntil(task.input.window, { phase: "upload" }, context) : never(context)),
+			upload: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
 		},
 		abort: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
 	});
@@ -140,8 +133,7 @@ export function buildSetup(mods) {
 					return { status: "waiting", checkpoint: { phase: "announce", build, publish }, on: [build, publish], policy: "allSettled" };
 				}, context);
 			},
-			announce: (_task, runtime, context) =>
-				runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
+			announce: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
 		},
 		abort: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
 	});
@@ -150,10 +142,8 @@ export function buildSetup(mods) {
 		version: 1,
 		initial: () => ({ phase: "wait" }),
 		phases: {
-			wait: (task, runtime, context) =>
-				hasSleep ? runtime.sleepUntil(task.input.at, { phase: "check" }, context) : never(context),
-			check: (_task, runtime, context) =>
-				runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
+			wait: (task, runtime, context) => (hasSleep ? runtime.sleepUntil(task.input.at, { phase: "check" }, context) : never(context)),
+			check: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "completed", result: null } }), context),
 		},
 		abort: (_task, runtime, context) => runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), context),
 	});
@@ -242,8 +232,7 @@ export function buildSetup(mods) {
 			sections: [
 				section(
 					"triage",
-					() =>
-						"You triage issues for the acme/widgets repository. Search before you answer, keep notes with take_note, and delegate patches to a subagent.",
+					() => "You triage issues for the acme/widgets repository. Search before you answer, keep notes with take_note, and delegate patches to a subagent.",
 				),
 			],
 			tools,
@@ -280,7 +269,10 @@ export async function generate(mods, { kind, path, runScript, crashes }) {
 	const { faux } = setup;
 	const { fauxAssistantMessage, fauxToolCall: call, fauxThinking: think } = mods.ai;
 	// Factories build each message when the model is called, as a real provider does, so pi-ai times the response.
-	const say = (...args) => () => fauxAssistantMessage(...args);
+	const say =
+		(...args) =>
+		() =>
+			fauxAssistantMessage(...args);
 	const harness = await openHarness(mods, setup, kind, path);
 	const root = await harness.root(context, { agent: { model: LARGE } });
 
@@ -346,10 +338,7 @@ export async function generate(mods, { kind, path, runScript, crashes }) {
 	}, context);
 	const cleanup = await root.commit((tx) => tx.createTask(setup.tasks.Cleanup, {}, { ownership: { kind: "conversation" } }), context);
 	await harness.waitForTask(cleanup, context);
-	const aborted = await root.commit(
-		(tx) => tx.createTask(setup.tasks.Build, { version: "2.3.9" }, { ownership: { kind: "conversation" } }),
-		context,
-	);
+	const aborted = await root.commit((tx) => tx.createTask(setup.tasks.Build, { version: "2.3.9" }, { ownership: { kind: "conversation" } }), context);
 	await harness.abortTask(aborted, context);
 	await waitFor(async () => (await harness.inspect(context)).tasks?.some?.((t) => t.record?.kind === "app.publish"));
 	await delay(400);

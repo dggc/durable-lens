@@ -2,11 +2,11 @@
 // process owns the store, and reads stay consistent while the owner keeps committing.
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { openLens } from "../src/open.ts";
-import { copyFixture, fixture, generatorInstalled, hashTree, startOwner, STORES, VARIANTS, VERSIONS, type Version } from "./support.ts";
-import { join } from "node:path";
+import { copyFixture, fixture, generatorInstalled, hashTree, STORES, startOwner, VARIANTS, VERSIONS, type Version } from "./support.ts";
 
 describe("zero writes to committed fixtures", () => {
 	for (const version of VERSIONS) {
@@ -51,7 +51,9 @@ describe("zero writes while a pi-durable process owns the store", () => {
 describe("consistent reads while the owner commits", () => {
 	for (const version of ["1.2.0", "1.4.0"] as const) {
 		for (const kind of ["sqlite", "jsonl"] as const) {
-			it(`${version} ${kind}: every read succeeds and only moves forward`, { skip: !generatorInstalled(version) && `run npm ci in fixtures/generate/v${version}` }, async () => {
+			it(`${version} ${kind}: every read succeeds and only moves forward`, {
+				skip: !generatorInstalled(version) && `run npm ci in fixtures/generate/v${version}`,
+			}, async () => {
 				const copy = copyFixture(version, kind);
 				const owner = await startOwner(version, "churn", kind, copy.store);
 				try {
@@ -65,7 +67,10 @@ describe("consistent reads while the owner commits", () => {
 						previous = seq;
 						const settings = lens.documents.find((document) => document.kind === "app.settings");
 						assert.ok(settings !== undefined && settings.error === undefined, "the churned document materializes");
-						assert.deepEqual(lens.warnings.filter((warning) => !warning.includes("incomplete last line")), []);
+						assert.deepEqual(
+							lens.warnings.filter((warning) => !warning.includes("incomplete last line")),
+							[],
+						);
 						await delay(15);
 					}
 					assert.ok(advanced > 5, `reads saw the owner's commits (${advanced} advances)`);

@@ -30,7 +30,11 @@ JSONL files are only read, so it is safe to point at a store a running harness o
 
 async function main(): Promise<number> {
 	// Before the first read: a snapshot copies the whole store, and an interrupted read must not leave it behind.
-	for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]] as const) {
+	for (const [signal, code] of [
+		["SIGINT", 130],
+		["SIGTERM", 143],
+		["SIGHUP", 129],
+	] as const) {
 		process.once(signal, () => {
 			disposeScratch();
 			process.exit(code);

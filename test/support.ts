@@ -4,6 +4,7 @@ import { cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { RawStore } from "../src/store/types.ts";
 
 export const ROOT = fileURLToPath(new URL("..", import.meta.url));
 export const STORES = join(ROOT, "fixtures", "stores");
@@ -49,7 +50,12 @@ export function generatorInstalled(version: Version): boolean {
 }
 
 /** Start a pi-durable owner process on a store and wait until it reports ready. */
-export async function startOwner(version: Version, mode: "hold" | "churn", kind: "sqlite" | "jsonl", store: string): Promise<{ child: ChildProcess; stop: () => Promise<void> }> {
+export async function startOwner(
+	version: Version,
+	mode: "hold" | "churn",
+	kind: "sqlite" | "jsonl",
+	store: string,
+): Promise<{ child: ChildProcess; stop: () => Promise<void> }> {
 	const script = join(GENERATE, `v${version}`, "run.mjs");
 	const linked = lstatSync(join(GENERATE, `v${version}`, "node_modules", "@earendil-works", "pi-durable")).isSymbolicLink();
 	const child = spawn(process.execPath, [...(linked ? ["--conditions=source"] : []), script, mode, kind, store], { stdio: ["pipe", "pipe", "inherit"] });
@@ -76,5 +82,22 @@ export async function startOwner(version: Version, mode: "hold" | "churn", kind:
 				child.on("exit", () => resolve());
 				child.stdin?.end();
 			}),
+	};
+}
+
+/** A minimal in-memory store for building a lens from hand-written records. */
+export function rawStore(parts: Partial<RawStore>): RawStore {
+	return {
+		kind: "sqlite",
+		path: "test",
+		files: [],
+		conversations: [{ id: 1 }],
+		entries: [],
+		tasks: [],
+		submissions: [],
+		documents: [],
+		attempts: 1,
+		warnings: [],
+		...parts,
 	};
 }

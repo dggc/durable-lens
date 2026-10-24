@@ -110,13 +110,7 @@ export function applyOps(target: Json, ops: unknown): Json {
 		const key = path[path.length - 1] as Segment;
 		if (parent === null || typeof parent !== "object") throw new OpError(`parent of ${JSON.stringify(path)} is not a container`);
 		const read = (): Json | undefined =>
-			Array.isArray(parent)
-				? typeof key === "number"
-					? parent[key]
-					: undefined
-				: Object.hasOwn(parent, key)
-					? parent[key as string]
-					: undefined;
+			Array.isArray(parent) ? (typeof key === "number" ? parent[key] : undefined) : Object.hasOwn(parent, key) ? parent[key as string] : undefined;
 		const write = (value: Json): void => {
 			if (Array.isArray(parent)) {
 				if (typeof key !== "number" || key > parent.length) throw new OpError(`index ${String(key)} out of range`);

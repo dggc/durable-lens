@@ -4,3 +4,6 @@ fixtures/generate/v*/node_modules/
 fixtures/generate/vmain/
 *.log
 .DS_Store
+_site/
+coverage/
+*.tgz

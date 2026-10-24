@@ -48,7 +48,7 @@ body {
 	height: 100%;
 	background: var(--bg);
 	color: var(--text);
-	font: 14px/1.5 var(--sans);
+	font: 14px / 1.5 var(--sans);
 }
 
 a {
@@ -109,8 +109,10 @@ a:hover {
 }
 
 .brand-mark {
-	color: var(--accent);
-	font-size: 18px;
+	display: block;
+	width: 20px;
+	height: 20px;
+	background: url("mark.svg") center / contain no-repeat;
 }
 
 .store-path {
@@ -599,10 +601,6 @@ a:hover {
 	min-width: 0;
 }
 
-.card.selected .card-main {
-	outline: 2px solid var(--accent);
-}
-
 .role-user .card-main {
 	border-left-color: var(--user);
 }
@@ -613,6 +611,10 @@ a:hover {
 
 .role-tool-result .card-main {
 	border-left-color: var(--tool);
+}
+
+.card.selected .card-main {
+	outline: 2px solid var(--accent);
 }
 
 .card-head {
@@ -797,10 +799,6 @@ a:hover {
 	display: none;
 }
 
-.j-node[open] > summary .j-count {
-	display: none;
-}
-
 .j-body {
 	padding-left: 16px;
 	border-left: 1px solid var(--line);
@@ -840,6 +838,10 @@ a:hover {
 	color: var(--muted);
 	font-family: var(--mono);
 	font-size: 12px;
+}
+
+.j-node[open] > summary .j-count {
+	display: none;
 }
 
 .j-more {
@@ -940,11 +942,6 @@ a:hover {
 	flex: none;
 }
 
-.task-row > .task-note {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
 .task-row:hover {
 	background: var(--panel);
 	border-color: var(--line);
@@ -975,6 +972,11 @@ a:hover {
 .task-note.block {
 	display: flex;
 	margin: 8px 0;
+}
+
+.task-row > .task-note {
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .rewind {

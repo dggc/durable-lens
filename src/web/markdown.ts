@@ -16,7 +16,9 @@ function emphasis(text: string): Child[] {
 		if (match[1] !== undefined) out.push(h("strong", null, ...emphasis(match[1])));
 		else if (match[2] !== undefined) out.push(h("em", null, ...emphasis(match[2])));
 		else if (match[3] !== undefined) {
-			out.push(h("span", { class: "md-link", title: `link target (not followed): ${match[4]}` }, match[3], h("span", { class: "md-target" }, ` ⟨${match[4]}⟩`)));
+			out.push(
+				h("span", { class: "md-link", title: `link target (not followed): ${match[4]}` }, match[3], h("span", { class: "md-target" }, ` ⟨${match[4]}⟩`)),
+			);
 		}
 		last = index + match[0].length;
 	}
@@ -78,11 +80,25 @@ function table(rows: string[]): HTMLElement | undefined {
 	return h(
 		"table",
 		{ class: "md-table" },
-		h("thead", null, h("tr", null, head.map((cell) => h("th", null, ...inline(cell))))),
+		h(
+			"thead",
+			null,
+			h(
+				"tr",
+				null,
+				head.map((cell) => h("th", null, ...inline(cell))),
+			),
+		),
 		h(
 			"tbody",
 			null,
-			rows.slice(2).map((row) => h("tr", null, cells(row).map((cell) => h("td", null, ...inline(cell))))),
+			rows.slice(2).map((row) =>
+				h(
+					"tr",
+					null,
+					cells(row).map((cell) => h("td", null, ...inline(cell))),
+				),
+			),
 		),
 	);
 }

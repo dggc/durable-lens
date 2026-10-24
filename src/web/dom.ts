@@ -43,11 +43,15 @@ export function dateTime(ms: number | undefined): string {
 
 export function duration(ms: number | undefined): string {
 	if (ms === undefined || !Number.isFinite(ms)) return "—";
-	const abs = Math.abs(ms);
-	if (abs < 1000) return `${Math.round(ms)} ms`;
-	if (abs < 60_000) return `${(ms / 1000).toFixed(abs < 10_000 ? 2 : 1)} s`;
-	if (abs < 3_600_000) return `${Math.floor(ms / 60_000)} min ${Math.round((abs % 60_000) / 1000)} s`;
-	if (abs < 172_800_000) return `${(ms / 3_600_000).toFixed(1)} h`;
+	// A span from clocks out of order: the magnitude formatted as usual, with its sign in front.
+	if (ms <= -0.5) return `-${duration(-ms)}`;
+	if (ms < 999.5) return `${Math.abs(Math.round(ms))} ms`;
+	if (ms < 59_950) return `${(ms / 1000).toFixed(ms < 9_995 ? 2 : 1)} s`;
+	if (ms < 3_599_500) {
+		const seconds = Math.round(ms / 1000);
+		return `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+	}
+	if (ms < 172_800_000) return `${(ms / 3_600_000).toFixed(1)} h`;
 	return `${(ms / 86_400_000).toFixed(1)} d`;
 }
 

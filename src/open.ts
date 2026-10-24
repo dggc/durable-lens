@@ -17,7 +17,8 @@ export type OpenOptions = ReadOptions & {
 /** Read a SQLite file or a JSONL directory, never writing to it. */
 export async function readStore(path: string, options: ReadOptions = {}): Promise<RawStore> {
 	const absolute = resolve(path);
-	const stat = statSync(absolute);
+	const stat = statSync(absolute, { throwIfNoEntry: false });
+	if (stat === undefined) throw new Error(`${absolute} does not exist; give a SQLite file or a JSONL storage directory`);
 	if (stat.isDirectory()) {
 		if (isJsonlStore(absolute)) return readJsonl(absolute, options);
 		throw new Error(`${absolute} is a directory without main.jsonl, so not a pi-durable JSONL store`);

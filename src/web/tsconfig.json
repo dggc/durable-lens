@@ -1,19 +1,19 @@
 {
-	"compilerOptions": {
-		"target": "ES2022",
-		"module": "ES2022",
-		"moduleResolution": "bundler",
-		"lib": ["ES2023", "DOM", "DOM.Iterable"],
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"erasableSyntaxOnly": true,
-		"verbatimModuleSyntax": true,
-		"allowImportingTsExtensions": true,
-		"rewriteRelativeImportExtensions": true,
-		"skipLibCheck": true,
-		"types": [],
-		"rootDir": ".",
-		"outDir": "../../dist/web"
-	},
-	"include": ["*.ts"]
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true,
+    "types": [],
+    "rootDir": ".",
+    "outDir": "../../dist/web"
+  },
+  "include": ["*.ts"]
 }

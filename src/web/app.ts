@@ -1,8 +1,8 @@
-import { bytes, clear, clock, cost, h, pill, tokens } from "./dom.ts";
 import { documentsView } from "./documents.ts";
+import { bytes, clear, clock, cost, h, pill, tokens } from "./dom.ts";
 import type { Lens, LensConversation } from "./lens.ts";
 import { buildIndex, type Context, type Index, parseRoute, type Route, routeHash, type View } from "./state.ts";
-import { statusText, taskTone, tasksView } from "./tasks.ts";
+import { statusText, tasksView, taskTone } from "./tasks.ts";
 import { timelineView } from "./timeline.ts";
 import { usageView } from "./usage.ts";
 
@@ -50,13 +50,20 @@ function conversationTree(ctx: Context): HTMLElement {
 		seen.add(conversation.id);
 		const item = h(
 			"a",
-			{ class: `conv ${ctx.route.conversation === conversation.id && ctx.route.view === "timeline" ? "selected" : ""}`, href: ctx.link({ view: "timeline", conversation: conversation.id, compare: false }) },
+			{
+				class: `conv ${ctx.route.conversation === conversation.id && ctx.route.view === "timeline" ? "selected" : ""}`,
+				href: ctx.link({ view: "timeline", conversation: conversation.id, compare: false }),
+			},
 			h("span", { class: `conv-icon role-${conversation.role}` }, icon[conversation.role]),
 			h(
 				"span",
 				{ class: "conv-text" },
 				h("span", { class: "conv-label" }, conversation.role === "root" ? "Root" : conversation.label),
-				h("span", { class: "conv-meta" }, `${conversation.entryIds.length} entries · ${cost(conversation.usage.cost)}${conversation.model === undefined ? "" : ` · ${conversation.model.replace(/^[^/]+\//, "")}`}`),
+				h(
+					"span",
+					{ class: "conv-meta" },
+					`${conversation.entryIds.length} entries · ${cost(conversation.usage.cost)}${conversation.model === undefined ? "" : ` · ${conversation.model.replace(/^[^/]+\//, "")}`}`,
+				),
 			),
 		);
 		item.style.setProperty("--depth", String(depth));
@@ -96,7 +103,12 @@ function sidebar(ctx: Context): HTMLElement {
 			h("div", { class: "muted small" }, `${ctx.lens.tasks.length} task records`),
 		),
 		h("div", { class: "side-title" }, "Spend"),
-		h("a", { class: "side-block", href: ctx.link({ view: "usage" }) }, h("div", { class: "big" }, cost(ctx.lens.usage.total.cost)), h("div", { class: "muted small" }, `${tokens(ctx.lens.usage.total.totalTokens)} tokens · ${Object.keys(ctx.lens.usage.byModel).length} models`)),
+		h(
+			"a",
+			{ class: "side-block", href: ctx.link({ view: "usage" }) },
+			h("div", { class: "big" }, cost(ctx.lens.usage.total.cost)),
+			h("div", { class: "muted small" }, `${tokens(ctx.lens.usage.total.totalTokens)} tokens · ${Object.keys(ctx.lens.usage.byModel).length} models`),
+		),
 	);
 }
 
@@ -104,21 +116,42 @@ function topbar(ctx: Context): HTMLElement {
 	const source = ctx.lens.source;
 	const format = ctx.lens.format;
 	const files = source.files.map((file) => `${file.name} ${bytes(file.size)}`).join("\n");
-	const kind = source.kind === "sqlite" ? `SQLite schema v${format.schemaVersion ?? "?"}${format.prefix === undefined ? "" : `, prefix ${format.prefix}`}` : `JSONL format ${format.jsonlFormat ?? "?"}`;
+	const kind =
+		source.kind === "sqlite"
+			? `SQLite schema v${format.schemaVersion ?? "?"}${format.prefix === undefined ? "" : `, prefix ${format.prefix}`}`
+			: `JSONL format ${format.jsonlFormat ?? "?"}`;
 	const warnings = ctx.lens.warnings;
 	return h(
 		"header",
 		{ class: "topbar" },
-		h("div", { class: "brand" }, h("span", { class: "brand-mark" }, "◎"), "durable-lens"),
+		h("div", { class: "brand" }, h("span", { class: "brand-mark", "aria-hidden": "true" }), "durable-lens"),
 		h("div", { class: "store-path mono", title: `${source.path}\n${files}` }, source.path.length > 64 ? `…${source.path.slice(-63)}` : source.path),
 		h("span", { class: "badge", title: format.hints.join("\n") }, format.version),
 		h("span", { class: "badge muted" }, kind),
-		h("span", { class: "badge ok", title: "durable-lens copied the database and WAL to a private directory; the store itself is only read" }, source.kind === "sqlite" ? "read-only copy" : "read-only"),
+		h(
+			"span",
+			{ class: "badge ok", title: "durable-lens copied the database and WAL to a private directory; the store itself is only read" },
+			source.kind === "sqlite" ? "read-only copy" : "read-only",
+		),
 		source.decoder === undefined ? null : h("span", { class: "badge accent", title: source.decoder }, "decoded"),
-		warnings.length === 0 ? null : h("details", { class: "warnings" }, h("summary", { class: "badge warn" }, `${warnings.length} warning${warnings.length === 1 ? "" : "s"}`), h("ul", null, warnings.map((warning) => h("li", null, warning)))),
+		warnings.length === 0
+			? null
+			: h(
+					"details",
+					{ class: "warnings" },
+					h("summary", { class: "badge warn" }, `${warnings.length} warning${warnings.length === 1 ? "" : "s"}`),
+					h(
+						"ul",
+						null,
+						warnings.map((warning) => h("li", null, warning)),
+					),
+				),
 		h("span", { class: "spacer" }),
 		readError === null ? null : h("span", { class: "badge bad", title: readError }, "last reread failed"),
-		h("span", { class: `live-dot ${Date.now() - lastUpdate < 2500 ? "pulse" : ""}`, title: `read at ${clock(source.readAt)} in ${source.readMs} ms${source.attempts > 1 ? `, ${source.attempts} attempts` : ""}; rereads when the files change` }),
+		h("span", {
+			class: `live-dot ${Date.now() - lastUpdate < 2500 ? "pulse" : ""}`,
+			title: `read at ${clock(source.readAt)} in ${source.readMs} ms${source.attempts > 1 ? `, ${source.attempts} attempts` : ""}; rereads when the files change`,
+		}),
 		h("span", { class: "muted small" }, `read ${clock(source.readAt)}`),
 	);
 }
