@@ -1,0 +1,37 @@
+version: 2
+
+# The root manifest and the workflows. Each fixtures/generate/v*/ tree pins one pi-durable release so the
+# tests keep reading what that release wrote; its entry ignores every dependency, which also stops security
+# update pull requests there (alerts still show).
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 14
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directories: ["/fixtures/generate/v*"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"

@@ -1,0 +1,127 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 4 * * 2"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# These jobs fail on findings instead of uploading SARIF: Dependabot and fork pull requests get a
+# read-only token, which cannot write to code scanning. CodeQL and Scorecard do the uploads.
+jobs:
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check -
+          mkdir "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks" gitleaks
+      # The whole history the checkout fetched. Findings are redacted in the log.
+      - name: Scan the git history
+        run: |
+          "$RUNNER_TEMP/gitleaks/gitleaks" git --no-banner --redact --verbose --exit-code 1 .
+
+  osv-scanner:
+    name: Vulnerable dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      OSV_SCANNER_VERSION: 2.6.0
+      OSV_SCANNER_SHA256: ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install OSV-Scanner
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/osv-scanner" \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64"
+          echo "${OSV_SCANNER_SHA256}  $RUNNER_TEMP/osv-scanner" | sha256sum --check -
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+      # What ships and what builds it: a finding here fails the job.
+      - name: Scan the root lockfile
+        run: '"$RUNNER_TEMP/osv-scanner" scan source --lockfile package-lock.json'
+      # Each fixtures/generate/v*/ tree pins an old pi-durable release on purpose and only ever runs the synthetic
+      # fixtures, so its findings are reported as warnings, never upgraded and never failing the job.
+      - name: Scan the pinned fixture generator lockfiles
+        run: |
+          args=()
+          for lockfile in fixtures/generate/v[0-9]*/package-lock.json; do
+            args+=(--lockfile "$lockfile")
+          done
+          if ! "$RUNNER_TEMP/osv-scanner" scan source "${args[@]}"; then
+            echo "::warning::OSV-Scanner reports advisories in the pinned fixture generator trees; see the log above"
+          fi
+
+  zizmor:
+    name: Workflow audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          inputs: .github
+          version: 1.30.1
+          advanced-security: false
+          annotations: true
+
+  npm-signatures:
+    name: npm signatures
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm audit signatures
