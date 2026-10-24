@@ -1,0 +1,76 @@
+name: Bug report
+description: Something durable-lens shows wrong, fails to read, or does that it should not.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Do not attach real data
+
+        A pi-durable store holds prompts, tool output and model answers. **Do not attach or paste a store, a transcript, a screenshot of real content, or `--json` output** from real sessions. Do not include secrets or personal data.
+
+        Describe the shape of the problem instead, or reproduce it with a store from a committed fixture. Error and warning messages that name a file and a line are fine, once private paths are removed.
+
+        Did you find a security problem? Do not open an issue. Use the [private vulnerability report](https://github.com/dggc/durable-lens/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: durable-lens version
+      description: The output of `durable-lens --version`, or the commit if you run from a clone.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: The output of `node --version`.
+      placeholder: "v24.16.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 24.04, macOS 15, Windows 11, ..."
+    validations:
+      required: true
+  - type: input
+    id: pi-durable
+    attributes:
+      label: pi-durable version
+      description: The release that wrote the store. If you do not know, paste what the page header says, such as "pi-durable 1.4 or later".
+      placeholder: "1.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Storage kind
+      options:
+        - SQLite
+        - JSONL
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead. Include the exact command and any error or warning message.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps, ideally with a committed fixture such as `fixtures/stores/1.4.0/sqlite/session.sqlite`. Say if the store was in use by a running harness.
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I did not attach or paste any real store, transcript or `--json` output.
+          required: true

@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest something durable-lens should show or do.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please read the [vision](https://github.com/dggc/durable-lens/blob/main/VISION.md) first. durable-lens never writes to the store it reads, and the viewer makes no network calls. A request that needs either one cannot be accepted as it is, but a way to get the same result without them might be.
+
+        Do not attach or paste a real store, transcript or `--json` output.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to find out or do, and what stops you today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How it could work. A sketch or a description of the view is enough.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What you do now, and anything else you considered.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Timeline or transcript
+        - Task graph
+        - Documents
+        - Usage and cost
+        - Reading a store (SQLite or JSONL)
+        - A new pi-durable release or storage kind
+        - Command line or JSON output
+        - Library
+        - Documentation
+        - Other
+    validations:
+      required: true
