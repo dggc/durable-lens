@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="durable-lens">
+	<title>durable-lens</title>
+	<defs>
+		<clipPath id="glass"><circle cx="27.5" cy="27.5" r="15.5"/></clipPath>
+		<g id="log">
+			<rect x="5" y="16.5" width="31" height="6.5" rx="3.25" fill="#4cc38a"/>
+			<rect x="20" y="24.25" width="40" height="6.5" rx="3.25" fill="#b48cf2"/>
+			<rect x="5" y="32" width="21" height="6.5" rx="3.25" fill="#4cc38a"/>
+			<rect x="31" y="32" width="11" height="6.5" rx="3.25" fill="#4cc38a"/>
+		</g>
+	</defs>
+	<rect width="64" height="64" rx="14" fill="#0d1016"/>
+	<use href="#log" opacity="0.35"/>
+	<use href="#log" clip-path="url(#glass)"/>
+	<circle cx="27.5" cy="27.5" r="15.5" fill="none" stroke="#7aa2ff" stroke-width="6.5"/>
+	<path d="M39.5 39.5 52 52" fill="none" stroke="#7aa2ff" stroke-width="8" stroke-linecap="round"/>
+</svg>
