@@ -36,6 +36,12 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: none
           queries: security-extended
+          # The tests and the fixture generators run only on synthetic data in temp dirs; their predictable temp
+          # names and local fetches are deliberate, and none of that code ships.
+          config: |
+            paths-ignore:
+              - test
+              - fixtures
       - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           category: /language:${{ matrix.language }}
