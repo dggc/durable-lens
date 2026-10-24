@@ -103,6 +103,12 @@ function table(rows: string[]): HTMLElement | undefined {
 	);
 }
 
+/** A closing fence is the marker alone on its line, as long as the opening one: "```js" inside a block is code, not the end. */
+function closesFence(line: string, close: string): boolean {
+	const marker = line.trim();
+	return marker.startsWith(close) && /^(`+|~+)$/.test(marker);
+}
+
 export function markdown(source: string): HTMLElement {
 	const root = h("div", { class: "md" });
 	const lines = source.replace(/\r\n?/g, "\n").split("\n");
@@ -114,7 +120,7 @@ export function markdown(source: string): HTMLElement {
 			const close = fence[2] as string;
 			const body: string[] = [];
 			i++;
-			while (i < lines.length && !(lines[i] as string).trim().startsWith(close)) body.push(lines[i++] as string);
+			while (i < lines.length && !closesFence(lines[i] as string, close)) body.push(lines[i++] as string);
 			i++;
 			root.append(h("pre", { class: "md-code", "data-lang": fence[3] || undefined }, h("code", null, body.join("\n"))));
 			continue;
@@ -154,7 +160,9 @@ export function markdown(source: string): HTMLElement {
 			root.append(h("blockquote", null, ...inline(quoted.join("\n"))));
 			continue;
 		}
-		const paragraph: string[] = [];
+		// The first line is always taken: a line that starts like a fence but is not one ("```é") would otherwise match
+		// no block and stop the paragraph before it began, and the loop would never advance.
+		const paragraph: string[] = [lines[i++] as string];
 		while (i < lines.length && (lines[i] as string).trim() !== "" && !/^(\s*(```|~~~)|#{1,6}\s|\s*\|)/.test(lines[i] as string)) {
 			paragraph.push(lines[i++] as string);
 		}

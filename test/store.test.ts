@@ -255,6 +255,14 @@ describe("JSONL reader", () => {
 		await assert.rejects(readJsonl(directory), /doc-1.jsonl: malformed record of commit 1/);
 	});
 
+	it("reads a document revision whose version is not a number as NaN", async () => {
+		// Found by the fuzz tests: Number() of an object with a toString that is not a function throws a TypeError.
+		put("main.jsonl", lines(commit(1, { type: "document.create", record: { id: 1, scope: { kind: "session" } }, ordinal: 0 })));
+		put("doc-1.jsonl", lines({ seq: 1, ordinal: 0, payload: { content: { kind: "base", version: { toString: 1 }, value: null } } }));
+		const raw = await readJsonl(directory);
+		assert.ok(Number.isNaN(raw.documents[0]?.revisions[0]?.version));
+	});
+
 	it("does not read a directory without main.jsonl", async () => {
 		await assert.rejects(readJsonl(directory), /ENOENT/);
 		await assert.rejects(readStore(directory), /without main.jsonl, so not a pi-durable JSONL store/);
@@ -383,6 +391,15 @@ describe("SQLite reader", () => {
 		db.exec(`INSERT INTO conversations VALUES (2, 'not json')`);
 		db.close();
 		await assert.rejects(readSqlite(path), /JSON/);
+	});
+
+	it("reads a document whose record is JSON null, without revisions", async () => {
+		const path = sqliteStore("n.sqlite", "", { conversations: [{ id: 1 }] });
+		const db = new DatabaseSync(path);
+		db.exec(`INSERT INTO documents VALUES (1, 'null'); INSERT INTO document_revisions VALUES (1, 1, 'base', 1, '{}')`);
+		db.close();
+		const raw = await readSqlite(path);
+		assert.deepEqual(raw.documents, [{ record: null, revisions: [] }]);
 	});
 
 	it("copies the database into a private directory and cleans up, also on failure", async () => {

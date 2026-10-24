@@ -147,7 +147,8 @@ export async function readSqlite(source: string, options: ReadOptions = {}): Pro
 		}
 		const documents = (await records("documents", "ORDER BY id")).map(({ record }) => ({
 			record,
-			revisions: revisions.get(Number(record.id)) ?? [],
+			// The record is whatever the column (or a decoder) held: null and ciphertext have no id, hence no revisions.
+			revisions: revisions.get(typeof record?.id === "number" ? record.id : Number.NaN) ?? [],
 		}));
 
 		return {

@@ -20,7 +20,11 @@ export type BuildOptions = {
 
 const isObject = (value: unknown): value is JsonObject => value !== null && typeof value === "object" && !Array.isArray(value);
 const num = (value: unknown): number | undefined => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+/** The id of a stored record, which may be anything a decoder returned: null, a string of ciphertext, an array. */
+const idOf = (record: unknown): number | undefined => (isObject(record) ? num(record.id) : undefined);
 const str = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
+/** Number(value) for a field that may hold anything: an object whose `toString` is not a function makes Number() throw. */
+const toNumber = (value: unknown): number => (typeof value === "object" && value !== null ? Number.NaN : Number(value));
 
 export function emptyUsage(): LensUsage {
 	return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: 0 };
@@ -57,7 +61,7 @@ function entryOf(raw: { record: JsonObject; seq: number | undefined }): LensEntr
 	const messages = Array.isArray(record.model) ? record.model : [];
 	const entry: LensEntry = {
 		id: Number(record.id),
-		conversationId: Number(record.conversationId),
+		conversationId: toNumber(record.conversationId),
 		kind: str(record.kind) ?? "?",
 		messages,
 	};
@@ -91,7 +95,7 @@ function taskOf(record: JsonObject, restartLimit: number): LensTask {
 	const task: LensTask = {
 		id: Number(record.id),
 		kind: str(record.kind) ?? "?",
-		conversationId: Number(record.conversationId),
+		conversationId: toNumber(record.conversationId),
 		children: [],
 		status,
 		background: record.background === true,
@@ -113,7 +117,7 @@ function taskOf(record: JsonObject, restartLimit: number): LensTask {
 		if (isObject(state.checkpoint) && str(state.checkpoint.phase) !== undefined) task.phase = String(state.checkpoint.phase);
 	}
 	if (num(state.until) !== undefined) task.until = Number(state.until);
-	if (Array.isArray(state.on)) task.on = state.on.map(Number);
+	if (Array.isArray(state.on)) task.on = state.on.map((value) => toNumber(value));
 	if (str(state.policy) !== undefined) task.policy = String(state.policy);
 	if (isObject(state.outcome)) {
 		const outcome = state.outcome;
@@ -183,7 +187,7 @@ function documentOf(raw: RawDocument): LensDocument {
 function submissionOf(record: JsonObject): LensSubmission {
 	const submission: LensSubmission = {
 		id: Number(record.id),
-		conversationId: Number(record.conversationId),
+		conversationId: toNumber(record.conversationId),
 		type: str(record.type) ?? "?",
 		status: str(record.status) ?? "?",
 	};
@@ -262,14 +266,14 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 	const restartLimit = options.restartLimit ?? DEFAULT_RESTART_LIMIT;
 	const warnings = [...raw.warnings];
 	// Records without their own id are not pi-durable JSON as stored in the clear.
-	const opaque = [...raw.conversations, ...raw.entries.map((entry) => entry.record), ...raw.tasks].filter((record) => num(record.id) === undefined).length;
+	const opaque = [...raw.conversations, ...raw.entries.map((entry) => entry.record), ...raw.tasks].filter((record) => idOf(record) === undefined).length;
 	if (opaque > 0) {
 		warnings.push(`${opaque} records have no id: the adapter may encrypt or compress payloads at rest; pass --decoder with a module that decodes them`);
 	}
-	const entries = raw.entries.filter((entry) => num(entry.record.id) !== undefined).map(entryOf);
-	const tasks = raw.tasks.filter((record) => num(record.id) !== undefined).map((record) => taskOf(record, restartLimit));
-	const documents = raw.documents.filter((document) => num(document.record.id) !== undefined).map(documentOf);
-	const submissions = raw.submissions.filter((record) => num(record.id) !== undefined).map(submissionOf);
+	const entries = raw.entries.filter((entry) => idOf(entry.record) !== undefined).map(entryOf);
+	const tasks = raw.tasks.filter((record) => idOf(record) !== undefined).map((record) => taskOf(record, restartLimit));
+	const documents = raw.documents.filter((document) => idOf(document.record) !== undefined).map(documentOf);
+	const submissions = raw.submissions.filter((record) => idOf(record) !== undefined).map(submissionOf);
 
 	const taskById = new Map(tasks.map((task) => [task.id, task]));
 	const entryById = new Map(entries.map((entry) => [entry.id, entry]));
@@ -314,11 +318,11 @@ export function buildLens(raw: RawStore, options: BuildOptions = {}): Lens {
 	}
 
 	const conversations: LensConversation[] = raw.conversations
-		.filter((record) => num(record.id) !== undefined)
+		.filter((record) => idOf(record) !== undefined)
 		.map((record) => {
 			const id = Number(record.id);
-			const parent = isObject(record.parent) ? { conversationId: Number(record.parent.conversationId), at: Number(record.parent.at) } : undefined;
-			const owner = isObject(record.owner) ? { conversationId: Number(record.owner.conversationId), taskId: Number(record.owner.taskId) } : undefined;
+			const parent = isObject(record.parent) ? { conversationId: toNumber(record.parent.conversationId), at: toNumber(record.parent.at) } : undefined;
+			const owner = isObject(record.owner) ? { conversationId: toNumber(record.owner.conversationId), taskId: toNumber(record.owner.taskId) } : undefined;
 			const own = entries.filter((entry) => entry.conversationId === id);
 			const docs = docsByConversation.get(id) ?? [];
 			const usageDoc = docs.find((document) => document.kind === "pi.usage" && document.retiredAt === undefined);

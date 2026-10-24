@@ -244,7 +244,7 @@ async function readOnce(directory: string, options: ReadOptions): Promise<Omit<R
 					document.revisions.push({
 						seq,
 						kind: content.kind === "base" ? "base" : "delta",
-						version: Number(content.version),
+						version: typeof content.version === "object" && content.version !== null ? Number.NaN : Number(content.version),
 						content: (content.kind === "base" ? content.value : content.ops) as Json,
 					});
 					break;

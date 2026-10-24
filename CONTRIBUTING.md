@@ -105,6 +105,8 @@ Add tests with the change.
 - A change that touches reading or writing files comes with a zero-write check.
 - Keep tests free of real data and of network access.
 
+`test/fuzz.test.ts` fuzzes the code that reads untrusted store content (the Markdown renderer, the op applier, the JSONL reader and the model) with [fast-check](https://fast-check.dev/), and runs with the other tests. A failure prints the seed and a shrunk counterexample; run `FUZZ_SEED=<seed> node --test test/fuzz.test.ts` to repeat it, and turn the counterexample into a plain test next to the fix. `FUZZ_RUNS=<n>` sets the number of runs of every property (the default keeps the file near four seconds; the JSONL properties wait on their retries, so `FUZZ_RUNS=200` already takes about a minute). Without `FUZZ_SEED` the seed is random.
+
 ## Commit style
 
 - A short subject in the imperative, in sentence case, without a type prefix and without a final period: "Skip an incomplete last line in JSONL sidecars".

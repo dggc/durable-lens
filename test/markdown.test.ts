@@ -68,6 +68,22 @@ describe("block rules", () => {
 		assert.equal(pre?.attributes["data-lang"], undefined);
 	});
 
+	it("closes a fence only with the marker alone on its line, as long as the opening one", () => {
+		// Found by the fuzz tests: a line that merely started with the marker ended the block and its text was lost.
+		const code = (source: string) => findAll(asFake(markdown(source)), (node) => node.tag === "pre")[0]?.textContent;
+		assert.equal(code("```\na\n```js\nb\n```"), "a\n```js\nb");
+		assert.equal(code("~~~\nx\n~~~y"), "x\n~~~y");
+		assert.equal(code("````\na\n```\nb\n````"), "a\n```\nb");
+		assert.equal(code("```\na\n  ````  \nb"), "a");
+	});
+
+	it("renders a line that starts like a fence but is not one as a paragraph, and finishes", () => {
+		// Found while writing the fuzz tests: the paragraph loop took no line and never advanced, so this input hung the page.
+		assert.equal(body("```é"), "<p>```é</p>");
+		assert.equal(body("~~~ x y\nnext"), "<p>~~~ x y\nnext</p>");
+		assert.equal(body("a\n```é\nb"), "<p>a</p><p>```é\nb</p>");
+	});
+
 	it("renders a pipe table with a header, a rule and rows", () => {
 		assert.equal(
 			body("| a | b |\n|---|:---:|\n| 1 | `2` |"),

@@ -380,6 +380,40 @@ describe("odd stores", () => {
 		assert.equal(lens.tasks.length, 0);
 	});
 
+	it("skips records that are not objects at all, such as null from a column or a decoder, with the same warning", () => {
+		const odd = [null, 7, "ciphertext", [], true] as unknown as JsonObject[];
+		const lens = buildLens(
+			rawStore({
+				conversations: [{ id: 1 }, ...odd],
+				entries: odd.map((record) => ({ record, seq: 1 })),
+				tasks: odd,
+				submissions: odd,
+				documents: odd.map((record) => ({ record, revisions: [] })),
+			}),
+		);
+		assert.match(lens.warnings.join("\n"), /15 records have no id: .* --decoder/);
+		assert.deepEqual([lens.conversations.length, lens.entries.length, lens.tasks.length, lens.documents.length], [1, 0, 0, 0]);
+	});
+
+	it("reads ids and links that are objects with a toString that is not a function, as numbers that are not numbers", () => {
+		// Found by the fuzz tests: Number() of such a value throws, and one record took the whole lens down.
+		const odd = { toString: false, valueOf: false };
+		const lens = buildLens(
+			rawStore({
+				conversations: [{ id: 1, parent: { conversationId: odd, at: odd }, owner: { conversationId: odd, taskId: odd } }],
+				entries: [entry(1, { conversationId: odd })],
+				tasks: [task(1, { conversationId: odd, state: { status: "waiting", on: [odd, 2] } })],
+				submissions: [{ id: 1, conversationId: odd }],
+			}),
+		);
+		assert.ok(Number.isNaN(lens.entries[0]?.conversationId));
+		assert.ok(Number.isNaN(lens.tasks[0]?.conversationId));
+		assert.deepEqual(lens.tasks[0]?.on?.map(Number.isNaN), [true, false]);
+		assert.ok(Number.isNaN(lens.submissions[0]?.conversationId));
+		assert.ok(Number.isNaN(lens.conversations[0]?.parent?.conversationId));
+		assert.ok(Number.isNaN(lens.conversations[0]?.owner?.taskId));
+	});
+
 	it("keeps the reader's warnings first", () => {
 		assert.deepEqual(buildLens(rawStore({ warnings: ["from the reader"] })).warnings, ["from the reader"]);
 	});
