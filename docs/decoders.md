@@ -17,7 +17,7 @@ export default function decode(value, site) {
 Run it with `--decoder`:
 
 ```sh
-DURABLE_LENS_KEY=... node dist/cli.js ./app.sqlite --decoder ./my-decoder.mjs
+DURABLE_LENS_KEY=... npx durable-lens ./app.sqlite --decoder ./my-decoder.mjs
 ```
 
 The module's default export is the function. A named export `decode` also works, if there is no default function. Anything else is an error: `<path> exports no decode function (default export or "decode")`.
@@ -49,10 +49,10 @@ The tests check these sites. Do not rely on any other.
 
 ## Example: AES-256-GCM
 
-[examples/decoder-aes-gcm.mjs](../examples/decoder-aes-gcm.mjs) decodes an adapter that stores each payload as `{"enc": "<base64 of 12-byte IV | 16-byte GCM tag | ciphertext>"}`, encrypted with AES-256-GCM. It reads the key from the environment:
+[examples/decoder-aes-gcm.mjs](../examples/decoder-aes-gcm.mjs) decodes an adapter that stores each payload as `{"enc": "<base64 of 12-byte IV | 16-byte GCM tag | ciphertext>"}`, encrypted with AES-256-GCM. It reads the key from the environment. With a copy of the file in the current directory:
 
 ```sh
-DURABLE_LENS_KEY=<base64 of the 32-byte key> node dist/cli.js app.sqlite --decoder ./examples/decoder-aes-gcm.mjs
+DURABLE_LENS_KEY=<base64 of the 32-byte key> npx durable-lens app.sqlite --decoder ./decoder-aes-gcm.mjs
 ```
 
 It throws at load if the key is not 32 bytes: `set DURABLE_LENS_KEY to the base64 of the 32-byte key`. `test/decoder.test.ts` encrypts a copy of a fixture the same way and checks that the decoded result equals the plain one. Adapt the envelope and the cipher to yours.

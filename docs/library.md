@@ -1,12 +1,16 @@
 # Library
 
-durable-lens can be used from Node.js code. The package is an ES module, needs Node.js 22.13 or later, and ships its types. It is not on npm yet. From a clone, build it and import `dist/index.js`:
+durable-lens can be used from Node.js code. The package is an ES module, needs Node.js 22.13 or later, and ships its types:
 
-```js
-import { openLens } from "/path/to/durable-lens/dist/index.js";
+```sh
+npm install durable-lens
 ```
 
-Once it is published, `import { openLens } from "durable-lens"` will work. The API may change in any release before 1.0.
+```js
+import { openLens } from "durable-lens";
+```
+
+The API may change in any release before 1.0.
 
 The library keeps the guarantees of the command line: it never opens a store for writing. It also exports `serve`, the web server that the command line uses.
 

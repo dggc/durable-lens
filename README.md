@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/durable-lens"><img src="https://img.shields.io/npm/v/durable-lens.svg" alt="npm"></a>
   <a href="https://github.com/dggc/durable-lens/actions/workflows/ci.yml"><img src="https://github.com/dggc/durable-lens/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/dggc/durable-lens/actions/workflows/codeql.yml"><img src="https://github.com/dggc/durable-lens/actions/workflows/codeql.yml/badge.svg" alt="CodeQL"></a>
   <a href="https://scorecard.dev/viewer/?uri=github.com/dggc/durable-lens"><img src="https://api.scorecard.dev/projects/github.com/dggc/durable-lens/badge" alt="OpenSSF Scorecard"></a>
@@ -23,16 +24,14 @@ Point durable-lens at the SQLite file or JSONL directory of a pi-durable harness
 
 ## Quick start
 
-durable-lens needs Node.js 22.13 or later. It has no runtime dependencies. The package is not on npm yet, so run it from a clone:
+durable-lens needs Node.js 22.13 or later. It has no runtime dependencies. To try it on a store that a real pi-durable 1.4.0 wrote, which the repository includes:
 
 ```sh
-git clone https://github.com/dggc/durable-lens.git
-cd durable-lens
-npm ci && npm run build
-node dist/cli.js fixtures/stores/1.4.0/sqlite/session.sqlite --restart-limit 3 --open
+git clone --depth 1 https://github.com/dggc/durable-lens.git
+npx durable-lens durable-lens/fixtures/stores/1.4.0/sqlite/session.sqlite --restart-limit 3 --open
 ```
 
-That opens a store that a real pi-durable 1.4.0 wrote, which the repository includes. `--restart-limit 3` is the limit its scenario used, so that its parked task shows as parked. durable-lens prints a local address with a random token and keeps running until you press Ctrl-C:
+`--restart-limit 3` is the limit its scenario used, so that its parked task shows as parked. durable-lens prints a local address with a random token and keeps running until you press Ctrl-C:
 
 ```
 durable-lens: pi-durable 1.4 or later, 3 conversations, 27 tasks
@@ -43,14 +42,12 @@ durable-lens: pi-durable 1.4 or later, 3 conversations, 27 tasks
 Open that address in a browser if `--open` did not. Then point it at your own store:
 
 ```sh
-node dist/cli.js ./session.sqlite        # or a JSONL storage directory
+npx durable-lens ./session.sqlite        # or a JSONL storage directory
 ```
 
 The store is the path your harness passes to `openNodeSqliteStorage(path)` or `openNodeJsonlStorage(path)`. A SQLite store is a file. A JSONL store is a directory that contains `main.jsonl`.
 
-Once the package is published, `npx durable-lens ./session.sqlite` will work too.
-
-
+To keep it installed instead, run `npm install --global durable-lens`, then `durable-lens ./session.sqlite`.
 
 ## What it shows
 
@@ -105,7 +102,7 @@ CI runs the tests on Linux and macOS.
 If your SQLite adapter encrypts or compresses payloads at rest, durable-lens sees only ciphertext, and says so. Give it a decoder:
 
 ```sh
-DURABLE_LENS_KEY=... node dist/cli.js ./app.sqlite --decoder ./my-decoder.mjs
+DURABLE_LENS_KEY=... npx durable-lens ./app.sqlite --decoder ./my-decoder.mjs
 ```
 
 ```js
@@ -161,10 +158,10 @@ Exit codes and examples are in the [CLI reference](docs/cli.md).
 
 `--json` prints the same normalized view the page uses, for scripts and diffs. It contains your transcripts, so treat it like the store itself. The shape is described in [JSON output](docs/json-output.md) and may change before 1.0.
 
-As a library, `openLens(path)` returns that view and `readStore(path)` returns the raw records. From a clone, import `/path/to/durable-lens/dist/index.js`. The package name works once it is published:
+As a library (`npm install durable-lens`), `openLens(path)` returns that view and `readStore(path)` returns the raw records:
 
 ```js
-import { openLens } from "durable-lens"; // from a clone: "/path/to/durable-lens/dist/index.js"
+import { openLens } from "durable-lens";
 
 const lens = await openLens("./session.sqlite");
 console.log(lens.format.version, lens.usage.total.cost);

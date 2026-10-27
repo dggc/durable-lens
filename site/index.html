@@ -60,16 +60,17 @@
 			<h1>A read-only inspector for <span class="nowrap">pi-durable</span> storage</h1>
 			<p class="lead">Point it at the SQLite file or JSONL directory of a harness, running or not, and see the transcript, the task graph, the documents, and what every turn cost and how long it took, on one timeline.</p>
 			<div class="cmd">
-				<code id="command"><span class="prompt">$ </span>git clone https://github.com/dggc/durable-lens.git<br><span class="prompt">$ </span>cd durable-lens &amp;&amp; npm ci &amp;&amp; npm run build<br><span class="prompt">$ </span>node dist/cli.js ./session.sqlite</code>
-				<button class="copy" type="button" data-copy="git clone https://github.com/dggc/durable-lens.git&#10;cd durable-lens &amp;&amp; npm ci &amp;&amp; npm run build&#10;node dist/cli.js ./session.sqlite" hidden>Copy</button>
+				<code id="command"><span class="prompt">$ </span>npx durable-lens ./session.sqlite</code>
+				<button class="copy" type="button" data-copy="npx durable-lens ./session.sqlite" hidden>Copy</button>
 				<span class="visually-hidden" id="copy-status" role="status"></span>
 			</div>
 			<ul class="actions">
 				<li><a class="button primary" href="https://github.com/dggc/durable-lens">GitHub</a></li>
 				<li><a class="button" href="https://github.com/dggc/durable-lens/tree/main/docs">Docs</a></li>
+				<li><a class="button" href="https://www.npmjs.com/package/durable-lens">npm</a></li>
 				<li><a class="button" href="https://github.com/dggc/durable-lens/blob/main/CHANGELOG.md">Changelog</a></li>
 			</ul>
-			<p class="note">Not on npm yet: <code>npx durable-lens</code> will work with the first release. Until then, run it from a clone as above.</p>
+			<p class="note">Needs Node.js 22.13 or later. No runtime dependencies.</p>
 			<p class="note">It never runs your harness and never writes to your store, so you can point it at one a live process owns.</p>
 		</div>
 	</div>
@@ -240,20 +241,21 @@
 			<h2 id="quick-start-title">Quick start</h2>
 			<ol class="steps">
 				<li>
-					<p>durable-lens needs Node.js 22.13 or later and has no runtime dependencies. It is not on npm yet, so build it from a clone with the three commands at the top of this page. <code>node dist/cli.js</code> stands in for <code>npx durable-lens</code>, which will work with the first release. Try it on a store that a real pi-durable 1.4.0 wrote, which the repository includes:</p>
-					<pre><code>node dist/cli.js fixtures/stores/1.4.0/sqlite/session.sqlite --restart-limit 3 --open</code></pre>
+					<p>durable-lens needs Node.js 22.13 or later and has no runtime dependencies. Try it on a store that a real pi-durable 1.4.0 wrote, which the repository includes:</p>
+					<pre><code>git clone --depth 1 https://github.com/dggc/durable-lens.git
+npx durable-lens durable-lens/fixtures/stores/1.4.0/sqlite/session.sqlite --restart-limit 3 --open</code></pre>
 				</li>
 				<li>
 					<p>Then point it at your own store: a SQLite file, or a JSONL storage directory (the one with <code>main.jsonl</code>). It is the path your harness passes to <code>openNodeSqliteStorage(path)</code> or <code>openNodeJsonlStorage(path)</code>. It serves the page on 127.0.0.1.</p>
-					<pre><code>node dist/cli.js ./session.sqlite
-node dist/cli.js ./session --open</code></pre>
+					<pre><code>npx durable-lens ./session.sqlite
+npx durable-lens ./session --open</code></pre>
 				</li>
 				<li>
 					<p>Leave it running: the page rereads the store when the files change. Use <code>--no-watch</code> to read once.</p>
 				</li>
 				<li>
 					<p>Script against the same normalized view the page uses. As a library, <code>openLens(path)</code> returns it and <code>readStore(path)</code> returns the raw records.</p>
-					<pre><code>node dist/cli.js ./session.sqlite --json &gt; session.json</code></pre>
+					<pre><code>npx durable-lens ./session.sqlite --json &gt; session.json</code></pre>
 				</li>
 			</ol>
 			<h3 class="more">Options</h3>
@@ -283,6 +285,7 @@ node dist/cli.js ./session --open</code></pre>
 		<ul class="footer-links">
 			<li><a href="https://github.com/dggc/durable-lens">GitHub</a></li>
 			<li><a href="https://github.com/dggc/durable-lens/tree/main/docs">Docs</a></li>
+			<li><a href="https://www.npmjs.com/package/durable-lens">npm</a></li>
 			<li><a href="https://github.com/dggc/durable-lens/issues">Issues</a></li>
 		</ul>
 		<p>Released under the <a href="https://github.com/dggc/durable-lens/blob/main/LICENSE">MIT License</a>.</p>

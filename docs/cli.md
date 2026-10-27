@@ -4,7 +4,7 @@
 durable-lens <store> [options]
 ```
 
-The examples here use `node dist/cli.js`, which is how to run durable-lens from a clone after `npm ci && npm run build`. Once the package is published, `npx durable-lens` takes its place.
+The examples here use `npx durable-lens`. After `npm install --global durable-lens`, drop the `npx`. From a clone, after `npm ci && npm run build`, `node dist/cli.js` takes its place.
 
 `<store>` is one of:
 
@@ -90,38 +90,38 @@ durable-lens reads no environment variables of its own. The temporary directory 
 Look at a SQLite store:
 
 ```sh
-node dist/cli.js ./session.sqlite
+npx durable-lens ./session.sqlite
 ```
 
 A JSONL store, on a fixed port, opened in the browser:
 
 ```sh
-node dist/cli.js ./session --port 4800 --open
+npx durable-lens ./session --port 4800 --open
 ```
 
 A database that holds several pi-durable storages, with table names such as `agent_entries`:
 
 ```sh
-node dist/cli.js ./app.sqlite --prefix agent_
+npx durable-lens ./app.sqlite --prefix agent_
 ```
 
 A store from a host that sets `restartLimit` to 3, read once:
 
 ```sh
-node dist/cli.js ./session.sqlite --restart-limit 3 --no-watch
+npx durable-lens ./session.sqlite --restart-limit 3 --no-watch
 ```
 
-An encrypted store:
+An encrypted store, with a copy of the [example decoder](../examples/decoder-aes-gcm.mjs) in the current directory:
 
 ```sh
-DURABLE_LENS_KEY=... node dist/cli.js ./app.sqlite --decoder ./examples/decoder-aes-gcm.mjs
+DURABLE_LENS_KEY=... npx durable-lens ./app.sqlite --decoder ./decoder-aes-gcm.mjs
 ```
 
 Total cost, and the parked tasks, from the JSON output:
 
 ```sh
-node dist/cli.js ./session.sqlite --json | jq '.usage.total.cost'
-node dist/cli.js ./session.sqlite --json | jq '[.tasks[] | select(.parked) | {id, kind, restarts}]'
+npx durable-lens ./session.sqlite --json | jq '.usage.total.cost'
+npx durable-lens ./session.sqlite --json | jq '[.tasks[] | select(.parked) | {id, kind, restarts}]'
 ```
 
 `--json` output holds your transcripts. Do not attach it to an issue.
