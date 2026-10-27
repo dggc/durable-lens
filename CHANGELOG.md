@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-27
 
 The first release: a read-only viewer for pi-durable storage.
 
@@ -32,5 +32,5 @@ The first release: a read-only viewer for pi-durable storage.
 - Tests for fixtures, zero writes (also while a pi-durable process owns the store), consistency while an owner commits, the decoder hook, the server and hostile content.
 - Documentation: README, VISION, CONTRIBUTING, SECURITY, and the pages under `docs/`.
 
-[Unreleased]: https://github.com/dggc/durable-lens/commits/main
-[0.1.0]: https://github.com/dggc/durable-lens/commits/main
+[Unreleased]: https://github.com/dggc/durable-lens/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/dggc/durable-lens/releases/tag/v0.1.0
