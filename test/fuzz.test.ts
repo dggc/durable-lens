@@ -471,8 +471,9 @@ async function readFuzzed(version: number, main: LineSpec[], endsWithNewline: bo
 	}
 }
 
-// Concurrent: a read that meets a line that is not JSON waits between its retries, and the other property can run meanwhile.
-describe("fuzz: readJsonl", { concurrency: true }, () => {
+// Serial: readFuzzed bounds each read's wall time, and a property running beside it on the same event loop would add
+// its own work to that time. On a slow CI runner, under coverage, that once took a read past the bound.
+describe("fuzz: readJsonl", () => {
 	it("returns a store or rejects with an Error, in bounded time and without writing, on well-formed lines of any shape", async () => {
 		await fc.assert(
 			fc.asyncProperty(
